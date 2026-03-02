@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geography Game</title>
+    <style>
+        body { display: flex; flex-direction: column; justify-content: center; align-items: center; font-family: Arial, sans-serif; }
+        #map { width: 80%; height: 80vh; }
+        .overlay { position: absolute; pointer-events: none; }
+        .play-btn { margin-top: 20px; padding: 10px 20px; font-size: 16px; }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <button class="play-btn" onclick="startGame()">PLAY</button>
+    <script>
+        let map;
+
+        function initMap() {
+            map = L.map('map').setView([-7.1, -55.25], 3); // Centered on South America
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+            addMarkers();
+            addOverlays();
+        }
+
+        function addMarkers() {
+            const markers = [
+                { lat: -3.9339, lng: -53.1258, name: 'French Guiana' },
+                // Add more markers as needed
+            ];
+
+            markers.forEach(marker => {
+                const markerLayer = L.marker([marker.lat, marker.lng]).addTo(map);
+                markerLayer.bindPopup(marker.name);
+            });
+        }
+
+        function addOverlays() {
+            // Semi-transparent island territory overlays
+            const overlay = L.imageOverlay('path/to/overlay.png', [[-34.8333, -52.5], [13.3, -34.5]], { opacity: 0.5 });
+            overlay.addTo(map);
+        }
+
+        function startGame() {
+            alert('Game started!');
+            // Game logic to be implemented
+        }
+
+        window.onload = initMap;
+    </script>
+</body>
+</html>

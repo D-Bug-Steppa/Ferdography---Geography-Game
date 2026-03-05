@@ -1,66 +1,2936 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Geography Game</title>
-    <style>
-        /* Basic styles for the game */
-        body { font-family: Arial, sans-serif; }
-        #map { width: 100%; height: 600px; position: relative; }
-        .country { position: absolute; cursor: pointer; }
-        .island { background: rgba(255, 255, 0, 0.5); }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GeoMaster — World Geography Game</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#0a0e1a; --surface:#111827; --surface2:#1a2235;
+    --accent:#00d4aa; --accent3:#ffd700; --text:#e8edf5;
+    --muted:#6b7a99; --correct:#00d4aa; --wrong:#ff4757;
+    --border:rgba(255,255,255,0.08);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'DM Sans',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; overflow-x:hidden; }
+  .bg-grid { position:fixed; inset:0; z-index:0; background-image:linear-gradient(rgba(0,212,170,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,170,0.03) 1px,transparent 1px); background-size:40px 40px; }
+  .bg-glow { position:fixed; inset:0; z-index:0; background:radial-gradient(ellipse 80% 50% at 50% -10%,rgba(0,212,170,0.12),transparent); }
+  .screen { position:relative; z-index:1; display:none; }
+  .screen.active { display:flex; }
+
+  @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+  .logo-badge { width:80px; height:80px; background:linear-gradient(135deg,var(--accent),#0096ff); border-radius:20px; display:flex; align-items:center; justify-content:center; font-size:2rem; margin:0 auto 1.5rem; box-shadow:0 0 40px rgba(0,212,170,0.3); animation:float 3s ease-in-out infinite; }
+  .btn-primary { background:linear-gradient(135deg,var(--accent),#0096ff); color:#000; border:none; padding:1rem 3rem; border-radius:50px; font-family:'Bebas Neue',sans-serif; font-size:1.4rem; letter-spacing:3px; cursor:pointer; transition:all 0.3s; box-shadow:0 4px 20px rgba(0,212,170,0.3); }
+  .btn-primary:hover { transform:translateY(-2px); box-shadow:0 8px 30px rgba(0,212,170,0.4); }
+  .btn-secondary { background:transparent; color:var(--muted); border:1px solid var(--border); padding:0.7rem 1.8rem; border-radius:50px; font-family:'Bebas Neue',sans-serif; font-size:1.1rem; letter-spacing:2px; cursor:pointer; transition:all 0.3s; }
+  .btn-secondary:hover { border-color:var(--muted); color:var(--text); }
+  .screen-title { font-family:'Bebas Neue',sans-serif; font-size:clamp(2rem,6vw,3.5rem); letter-spacing:3px; color:var(--text); margin-bottom:0.5rem; }
+  .screen-sub { font-size:0.9rem; color:var(--muted); margin-bottom:2rem; letter-spacing:1px; }
+
+  /* INTRO */
+  #intro { flex-direction:column; align-items:center; justify-content:center; min-height:100vh; padding:2rem; text-align:center; }
+  .intro-title { font-family:'Bebas Neue',sans-serif; font-size:clamp(4rem,10vw,8rem); letter-spacing:4px; background:linear-gradient(135deg,#fff 0%,var(--accent) 60%,#0096ff 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; line-height:1; }
+  .intro-sub-text { font-size:1.1rem; color:var(--muted); margin:1rem 0 2.5rem; font-weight:300; letter-spacing:2px; text-transform:uppercase; }
+
+  /* REGION SELECT */
+  #region-select { flex-direction:column; align-items:center; justify-content:center; min-height:100vh; padding:2rem; text-align:center; }
+  .region-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(135px,1fr)); gap:0.8rem; max-width:700px; width:100%; margin-bottom:2rem; }
+  .region-card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:1.2rem 1rem; cursor:pointer; transition:all 0.3s; text-align:center; position:relative; overflow:hidden; }
+  .region-card::before { content:''; position:absolute; inset:0; background:linear-gradient(135deg,rgba(0,212,170,0.08),transparent); opacity:0; transition:opacity 0.3s; }
+  .region-card:hover::before,.region-card.selected::before { opacity:1; }
+  .region-card:hover,.region-card.selected { border-color:var(--accent); transform:translateY(-3px); box-shadow:0 8px 24px rgba(0,212,170,0.18); }
+  .region-card .r-icon { font-size:2rem; margin-bottom:0.4rem; }
+  .region-card .r-name { font-weight:600; font-size:0.88rem; }
+  .region-card .r-count { font-size:0.68rem; color:var(--muted); margin-top:0.2rem; }
+  .region-card.selected .r-name { color:var(--accent); }
+  .region-nav { display:flex; gap:1rem; align-items:center; }
+
+  /* CHALLENGE SELECT */
+  #challenge-select { flex-direction:column; align-items:center; justify-content:center; min-height:100vh; padding:2rem; text-align:center; }
+  .mode-grid { display:flex; gap:0.85rem; flex-wrap:wrap; justify-content:center; margin-bottom:2rem; }
+  .mode-card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:1.3rem 1.5rem; cursor:pointer; transition:all 0.3s; width:160px; text-align:center; }
+  .mode-card:hover,.mode-card.selected { border-color:var(--accent); background:rgba(0,212,170,0.08); transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,212,170,0.15); }
+  .mode-card .m-icon { font-size:2rem; margin-bottom:0.5rem; }
+  .mode-card .m-name { font-weight:600; font-size:0.95rem; }
+  .mode-card .m-desc { font-size:0.72rem; color:var(--muted); margin-top:0.3rem; }
+  .challenge-nav { display:flex; gap:1rem; align-items:center; }
+  .region-badge { display:inline-flex; align-items:center; gap:0.5rem; background:rgba(0,212,170,0.1); border:1px solid rgba(0,212,170,0.25); border-radius:20px; padding:0.4rem 1rem; font-size:0.8rem; color:var(--accent); margin-bottom:1.5rem; }
+
+  /* GAME */
+  #game { flex-direction:column; min-height:100vh; padding:1rem; }
+  .game-header { display:flex; align-items:center; padding:0.6rem 1rem; background:var(--surface); border:1px solid var(--border); border-radius:14px; margin-bottom:1rem; gap:0.75rem; flex-wrap:nowrap; }
+  .stat-box { display:flex; flex-direction:column; align-items:center; min-width:45px; flex-shrink:0; }
+  .stat-label { font-size:0.58rem; text-transform:uppercase; letter-spacing:1px; color:var(--muted); }
+  .stat-value { font-family:'Bebas Neue',sans-serif; font-size:1.4rem; color:var(--accent); line-height:1; }
+  .lives-display { display:flex; gap:2px; align-items:center; }
+  .life-heart { font-size:1.1rem; transition:all 0.3s; }
+  .life-heart.lost { filter:grayscale(1) opacity(0.25); transform:scale(0.8); }
+  @keyframes heartLose { 0%,100%{transform:scale(1)} 50%{transform:scale(1.5)} }
+  .life-heart.lose-anim { animation:heartLose 0.3s ease; }
+  .progress-bar-wrap { flex:1; min-width:40px; height:7px; background:var(--surface2); border-radius:4px; overflow:hidden; }
+  .progress-bar-fill { height:100%; background:linear-gradient(90deg,var(--accent),#0096ff); border-radius:4px; transition:width 0.5s ease; }
+  .timer-ring-wrap { position:relative; width:48px; height:48px; flex-shrink:0; }
+  .timer-ring-wrap svg { position:absolute; top:0; left:0; transform:rotate(-90deg); }
+  .timer-ring-bg { fill:none; stroke:var(--surface2); stroke-width:4; }
+  .timer-ring-progress { fill:none; stroke:var(--accent); stroke-width:4; stroke-linecap:round; transition:stroke-dashoffset 1s linear,stroke 0.3s; }
+  .timer-text { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-family:'Bebas Neue',sans-serif; font-size:1rem; color:var(--text); }
+  .btn-quit { background:transparent; border:1px solid rgba(255,71,87,0.3); color:rgba(255,71,87,0.7); border-radius:8px; padding:0.32rem 0.65rem; font-size:0.68rem; font-family:'DM Sans',sans-serif; font-weight:600; cursor:pointer; transition:all 0.2s; letter-spacing:0.5px; text-transform:uppercase; flex-shrink:0; }
+  .btn-quit:hover { border-color:#ff4757; color:#ff4757; background:rgba(255,71,87,0.08); }
+
+  /* MODAL */
+  .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:350; display:none; align-items:center; justify-content:center; backdrop-filter:blur(4px); }
+  .modal-overlay.show { display:flex; }
+  .modal-box { background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:2rem; max-width:340px; width:90%; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.5); }
+  .modal-title { font-family:'Bebas Neue',sans-serif; font-size:2rem; letter-spacing:2px; margin-bottom:0.5rem; }
+  .modal-sub { font-size:0.88rem; color:var(--muted); margin-bottom:1.5rem; }
+  .modal-actions { display:flex; gap:0.75rem; justify-content:center; }
+  .modal-btn-quit { background:var(--wrong); color:#fff; border:none; padding:0.7rem 1.4rem; border-radius:50px; font-family:'Bebas Neue',sans-serif; font-size:1.1rem; letter-spacing:2px; cursor:pointer; }
+  .modal-btn-quit:hover { background:#ff2d3f; }
+  .modal-btn-cancel { background:transparent; color:var(--muted); border:1px solid var(--border); padding:0.7rem 1.4rem; border-radius:50px; font-family:'Bebas Neue',sans-serif; font-size:1.1rem; letter-spacing:2px; cursor:pointer; }
+  .modal-btn-cancel:hover { color:var(--text); border-color:var(--muted); }
+
+  /* QUESTION CARD */
+  .question-card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:1rem 1.5rem; margin-bottom:1rem; display:flex; align-items:center; gap:1rem; }
+  .q-flag { font-size:2.2rem; line-height:1; flex-shrink:0; }
+  .q-text { font-size:1rem; font-weight:500; flex:1; }
+  .q-type-badge { background:rgba(0,212,170,0.15); border:1px solid rgba(0,212,170,0.3); color:var(--accent); padding:0.28rem 0.75rem; border-radius:20px; font-size:0.66rem; text-transform:uppercase; letter-spacing:1px; white-space:nowrap; font-weight:600; }
+
+  /* MAP */
+  .map-container { background:var(--surface); border:1px solid var(--border); border-radius:16px; overflow:hidden; flex:1; min-height:280px; position:relative; margin-bottom:1rem; cursor:grab; user-select:none; }
+  .map-container:active { cursor:grabbing; }
+  .zoom-hint { position:absolute; bottom:10px; right:12px; font-size:0.63rem; color:var(--muted); background:rgba(10,14,26,0.75); padding:0.22rem 0.55rem; border-radius:6px; pointer-events:none; z-index:5; }
+
+  /* Dot country markers */
+  .dot-marker { cursor:pointer; }
+  .dot-marker circle.dot-bg { transition:r 0.15s; }
+  .dot-marker:hover circle.dot-bg { r:7; }
+  .dot-tooltip { position:absolute; background:rgba(10,14,26,0.95); border:1px solid var(--accent); border-radius:7px; padding:0.28rem 0.65rem; font-size:0.75rem; color:var(--accent); font-weight:600; pointer-events:none; white-space:nowrap; z-index:20; opacity:0; transition:opacity 0.15s; transform:translate(-50%,-130%); }
+  .dot-tooltip.show { opacity:1; }
+
+  @keyframes wrongPulse {
+    0%   { filter:drop-shadow(0 0 0px #ff4757); }
+    40%  { filter:drop-shadow(0 0 14px #ff4757) drop-shadow(0 0 28px #ff0000); }
+    100% { filter:drop-shadow(0 0 0px #ff4757); }
+  }
+  .wrong-pulse { animation:wrongPulse 0.6s ease forwards; }
+
+  /* OPTIONS */
+  .options-grid { display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; margin-bottom:1rem; }
+  .option-btn { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:0.85rem 1rem; color:var(--text); font-family:'DM Sans',sans-serif; font-size:0.88rem; font-weight:500; cursor:pointer; transition:all 0.25s; text-align:left; }
+  .option-btn:hover:not(:disabled) { border-color:var(--accent); background:rgba(0,212,170,0.08); }
+  .option-btn.correct { background:rgba(0,212,170,0.2); border-color:var(--correct); color:var(--correct); }
+  .option-btn.wrong { background:rgba(255,71,87,0.15); border-color:var(--wrong); color:var(--wrong); }
+  .option-btn:disabled { cursor:default; }
+
+  /* SUBMODE PANEL */
+  .subpanel-cat-icon { font-size:3.5rem; animation:float 3s ease-in-out infinite; }
+
+  /* FLAG QUIZ MODE */
+  #game.flagquiz-mode { justify-content:flex-start; align-items:center; }
+  #game.flagquiz-mode .question-card { display:none; }
+  .flagquiz-body { display:none; flex:1; flex-direction:column; align-items:center; justify-content:center; gap:1.75rem; width:100%; padding:1rem 1rem 3rem; }
+  #game.flagquiz-mode .flagquiz-body { display:flex; }
+  .flag-quiz-card { display:flex; flex-direction:column; align-items:center; gap:0.85rem; }
+  .flag-quiz-emoji { font-size:7.5rem; line-height:1; filter:drop-shadow(0 8px 32px rgba(0,212,170,0.2)); animation:float 3s ease-in-out infinite; }
+  .flag-quiz-question { font-size:1.05rem; color:var(--muted); font-weight:500; letter-spacing:0.5px; text-align:center; }
+  .flagquiz-body .options-grid { display:grid; grid-template-columns:1fr 1fr; gap:0.85rem; width:100%; max-width:460px; }
+  .flagquiz-body .option-btn { padding:1.15rem 1rem; font-size:1rem; text-align:center; border-radius:14px; font-weight:600; }
+  .flagquiz-body .option-btn:hover:not(:disabled) { transform:translateY(-2px); box-shadow:0 6px 20px rgba(0,212,170,0.18); }
+
+  /* CAPITAL QUIZ MODE */
+  #game.capitalquiz-mode { justify-content:flex-start; align-items:center; }
+  #game.capitalquiz-mode .question-card { display:none; }
+  .capitalquiz-body { display:none; flex:1; flex-direction:column; align-items:center; justify-content:center; gap:1.75rem; width:100%; padding:1rem 1rem 3rem; }
+  #game.capitalquiz-mode .capitalquiz-body { display:flex; }
+  .capital-quiz-card { display:flex; flex-direction:column; align-items:center; gap:0.6rem; }
+  .capital-quiz-icon { font-size:3rem; line-height:1; animation:float 3s ease-in-out infinite; }
+  .capital-quiz-name { font-family:'Bebas Neue',sans-serif; font-size:4rem; letter-spacing:3px; background:linear-gradient(135deg,#fff 0%,var(--accent) 60%,#0096ff 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; text-align:center; line-height:1.1; }
+  .capital-quiz-question { font-size:1.05rem; color:var(--muted); font-weight:500; letter-spacing:0.5px; text-align:center; }
+  .capitalquiz-body .options-grid { display:grid; grid-template-columns:1fr 1fr; gap:0.85rem; width:100%; max-width:460px; }
+  .capitalquiz-body .option-btn { padding:1.15rem 1rem; font-size:1rem; text-align:center; border-radius:14px; font-weight:600; }
+  .capitalquiz-body .option-btn:hover:not(:disabled) { transform:translateY(-2px); box-shadow:0 6px 20px rgba(0,212,170,0.18); }
+
+  /* CURRENCY QUIZ MODE */
+  #game.currencyquiz-mode { justify-content:flex-start; align-items:center; }
+  #game.currencyquiz-mode .question-card { display:none; }
+  .currencyquiz-body { display:none; flex:1; flex-direction:column; align-items:center; justify-content:center; gap:1.75rem; width:100%; padding:1rem 1rem 3rem; }
+  #game.currencyquiz-mode .currencyquiz-body { display:flex; }
+  .currency-quiz-card { display:flex; flex-direction:column; align-items:center; gap:0.6rem; }
+  .currency-quiz-icon { font-size:3rem; line-height:1; animation:float 3s ease-in-out infinite; }
+  .currency-quiz-name { font-family:'Bebas Neue',sans-serif; font-size:clamp(1.8rem,6vw,3.2rem); letter-spacing:3px; background:linear-gradient(135deg,var(--accent3),#ff8c00); -webkit-background-clip:text; -webkit-text-fill-color:transparent; text-align:center; line-height:1.1; }
+  .currency-quiz-question { font-size:1.05rem; color:var(--muted); font-weight:500; letter-spacing:0.5px; text-align:center; }
+  .currencyquiz-body .options-grid { display:grid; grid-template-columns:1fr 1fr; gap:0.85rem; width:100%; max-width:460px; }
+  .currencyquiz-body .option-btn { padding:1.15rem 1rem; font-size:1rem; text-align:center; border-radius:14px; font-weight:600; }
+  .currencyquiz-body .option-btn:hover:not(:disabled) { transform:translateY(-2px); box-shadow:0 6px 20px rgba(255,215,0,0.18); }
+
+  /* ANSWER HIGHLIGHT (wrong map click — correct country pulse) */
+  @keyframes answerPulse {
+    0%,100% { filter:drop-shadow(0 0 6px #ffcc00); }
+    50% { filter:drop-shadow(0 0 22px #ffdd00) drop-shadow(0 0 44px #ff8800); }
+  }
+  .answer-glow { animation:answerPulse 0.65s ease 3; }
+
+  /* TOAST */
+  .feedback-toast { position:fixed; top:80px; left:50%; transform:translateX(-50%) translateY(-20px); background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:0.7rem 1.4rem; font-weight:600; font-size:0.95rem; opacity:0; transition:all 0.3s; z-index:360; pointer-events:none; white-space:nowrap; }
+  .feedback-toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+  .feedback-toast.correct { border-color:var(--correct); color:var(--correct); }
+  .feedback-toast.wrong { border-color:var(--wrong); color:var(--wrong); }
+  @keyframes flashRed { 0%,100%{background:transparent} 50%{background:rgba(255,71,87,0.1)} }
+  .flash-wrong { animation:flashRed 0.5s ease; }
+
+  /* STREAK MILESTONE */
+  @keyframes streakIn { 0%{transform:translate(-50%,-50%) scale(0.4);opacity:0} 20%{transform:translate(-50%,-50%) scale(1.15);opacity:1} 80%{transform:translate(-50%,-50%) scale(1);opacity:1} 100%{transform:translate(-50%,-50%) scale(1.05);opacity:0} }
+  #streakBanner { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:180; pointer-events:none; text-align:center; display:none; }
+  #streakBanner.show { display:block; animation:streakIn 1.6s ease forwards; }
+  .streak-banner-inner { background:linear-gradient(135deg,rgba(10,14,26,0.95),rgba(17,24,39,0.95)); border:2px solid var(--accent3); border-radius:24px; padding:1.5rem 3rem; box-shadow:0 0 60px rgba(255,215,0,0.4); }
+  .streak-banner-emoji { font-size:3.5rem; line-height:1; }
+  .streak-banner-label { font-family:'Bebas Neue',sans-serif; font-size:2.8rem; letter-spacing:4px; background:linear-gradient(135deg,var(--accent3),#ff8c00); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  .streak-banner-sub { font-size:0.85rem; color:var(--muted); letter-spacing:2px; text-transform:uppercase; margin-top:0.2rem; }
+
+  /* ── PROFILE BUTTON ── */
+  .profile-btn { position:fixed; top:1rem; right:1rem; z-index:250; width:64px; height:64px; border-radius:50%; background:var(--surface); border:2px solid var(--accent); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:1.9rem; box-shadow:0 4px 20px rgba(0,212,170,0.25); transition:transform 0.25s, opacity 0.25s; padding:0; }
+  .profile-btn:hover { transform:scale(1.1); box-shadow:0 6px 30px rgba(0,212,170,0.45); }
+  .profile-btn-badges { position:absolute; bottom:-7px; left:50%; transform:translateX(-50%); display:flex; gap:2px; }
+  .profile-btn-badges span { font-size:0.74rem; line-height:1; background:var(--surface2); border-radius:50%; padding:2px; box-shadow:0 1px 4px rgba(0,0,0,0.5); }
+
+  /* ── PROFILE OVERLAY + PANEL ── */
+  .profile-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:280; display:none; backdrop-filter:blur(4px); }
+  .profile-overlay.show { display:block; }
+  .profile-panel { position:fixed; top:0; right:0; width:min(410px,100vw); height:100vh; background:var(--surface); border-left:1px solid var(--border); z-index:290; transform:translateX(100%); transition:transform 0.35s cubic-bezier(0.4,0,0.2,1); overflow-y:auto; display:flex; flex-direction:column; }
+  .profile-panel.open { transform:translateX(0); }
+  .profile-panel-header { display:flex; align-items:center; justify-content:space-between; padding:1.25rem 1.5rem; border-bottom:1px solid var(--border); flex-shrink:0; }
+  .profile-panel-title { font-family:'Bebas Neue',sans-serif; font-size:1.4rem; letter-spacing:2px; }
+  .profile-panel-close { background:transparent; border:1px solid var(--border); color:var(--muted); border-radius:8px; width:34px; height:34px; cursor:pointer; font-size:1rem; transition:all 0.2s; }
+  .profile-panel-close:hover { border-color:var(--wrong); color:var(--wrong); }
+
+  /* ── PROFILE CARD ── */
+  .profile-card-display { margin:1.25rem 1.5rem; border-radius:20px; padding:2rem 1.5rem 1.5rem; display:flex; flex-direction:column; align-items:center; gap:0.55rem; position:relative; overflow:hidden; transition:background 0.6s ease; min-height:170px; }
+  .profile-card-display::before { content:''; position:absolute; inset:0; background:rgba(0,0,0,0.25); }
+  .profile-card-display > * { position:relative; z-index:1; }
+  .profile-card-avatar-row { display:inline-flex; align-items:flex-end; }
+  .profile-card-avatar { font-size:4rem; line-height:1; filter:drop-shadow(0 4px 12px rgba(0,0,0,0.5)); }
+  .profile-card-badge { font-size:1.9rem; line-height:1; margin-left:-0.4rem; }
+  .profile-card-name { font-family:'Bebas Neue',sans-serif; font-size:1.9rem; letter-spacing:2px; color:#fff; cursor:pointer; border-bottom:2px solid transparent; transition:border-color 0.2s; text-shadow:0 2px 6px rgba(0,0,0,0.5); }
+  .profile-card-name:hover { border-bottom-color:rgba(255,255,255,0.5); }
+  .profile-card-name-input { background:rgba(255,255,255,0.12); border:none; border-bottom:2px solid rgba(255,255,255,0.7); color:#fff; font-family:'Bebas Neue',sans-serif; font-size:1.9rem; letter-spacing:2px; text-align:center; outline:none; width:200px; backdrop-filter:blur(4px); }
+  .profile-card-meta { font-size:0.76rem; color:rgba(255,255,255,0.65); letter-spacing:0.5px; text-shadow:0 1px 3px rgba(0,0,0,0.5); }
+
+  /* ── WARDROBE ── */
+  .wardrobe-container { padding:0.5rem 1.5rem 3rem; }
+  .wardrobe-header { font-family:'Bebas Neue',sans-serif; font-size:1rem; letter-spacing:3px; color:var(--accent); padding:1rem 0 0.75rem; border-top:1px solid var(--border); margin-top:0.5rem; }
+  .wardrobe-section { margin-bottom:1.25rem; }
+  .wardrobe-section-label { font-size:0.68rem; text-transform:uppercase; letter-spacing:1.5px; color:var(--muted); margin-bottom:0.6rem; }
+  .wardrobe-grid { display:flex; flex-wrap:wrap; gap:0.5rem; }
+  .wardrobe-item { width:74px; cursor:pointer; border-radius:12px; border:2px solid var(--border); background:var(--surface2); padding:0.55rem 0.4rem; display:flex; flex-direction:column; align-items:center; gap:0.3rem; transition:all 0.2s; position:relative; }
+  .wardrobe-item:hover:not(.locked) { border-color:var(--accent); transform:translateY(-2px); box-shadow:0 4px 16px rgba(0,212,170,0.2); }
+  .wardrobe-item.equipped { border-color:var(--accent); background:rgba(0,212,170,0.1); }
+  .wardrobe-item.locked { cursor:default; opacity:0.38; filter:grayscale(0.7); }
+  .wardrobe-item-preview { font-size:1.8rem; line-height:1; }
+  .wardrobe-item-swatch { width:38px; height:30px; border-radius:7px; }
+  .wardrobe-item-name { font-size:0.59rem; color:var(--muted); text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; width:100%; }
+  .wardrobe-item.equipped .wardrobe-item-name { color:var(--accent); font-weight:700; }
+  .wardrobe-item-lock { position:absolute; top:3px; right:4px; font-size:0.65rem; }
+  .wardrobe-lock-req { font-size:0.5rem; color:var(--muted); text-align:center; line-height:1.3; margin-top:0.15rem; }
+
+  /* ── UNLOCK TOAST (typed animations per reward) ── */
+  @keyframes toastSlide { 0%{transform:translateX(calc(100% + 2rem));opacity:0} 12%{transform:translateX(0);opacity:1} 80%{transform:translateX(0);opacity:1} 100%{transform:translateX(calc(100% + 2rem));opacity:0} }
+  @keyframes avatarBounce { 0%,100%{transform:scale(1)} 30%{transform:scale(1.4) rotate(-10deg)} 60%{transform:scale(0.9) rotate(5deg)} }
+  @keyframes themeFlash { 0%,100%{opacity:0} 20%,80%{opacity:0.18} }
+  @keyframes badgeSparkle { 0%{filter:brightness(1)} 25%{filter:brightness(2) drop-shadow(0 0 8px gold)} 50%{filter:brightness(1.5)} 100%{filter:brightness(1)} }
+  @keyframes bgReveal { 0%,100%{opacity:0} 15%,85%{opacity:1} }
+  .unlock-toast { position:fixed; bottom:2rem; right:2rem; z-index:400; background:var(--surface); border:2px solid var(--accent3); border-radius:16px; padding:0.9rem 1.25rem; display:flex; align-items:center; gap:0.85rem; box-shadow:0 8px 32px rgba(0,0,0,0.5); max-width:290px; pointer-events:none; opacity:0; }
+  .unlock-toast.show { animation:toastSlide 4s ease forwards; }
+  .unlock-toast-icon { font-size:2rem; flex-shrink:0; }
+  .unlock-toast-icon.avatar-bounce { animation:avatarBounce 0.7s ease 0.3s; }
+  .unlock-toast-icon.badge-sparkle { animation:badgeSparkle 0.9s ease 0.2s; }
+  .unlock-toast-title { font-family:'Bebas Neue',sans-serif; font-size:0.95rem; letter-spacing:2px; color:var(--accent3); }
+  .unlock-toast-items { font-size:0.78rem; color:var(--muted); margin-top:0.1rem; }
+  #themeFlashOverlay { position:fixed; inset:0; z-index:299; pointer-events:none; opacity:0; }
+  #themeFlashOverlay.flash { animation:themeFlash 1.2s ease forwards; }
+  #bgRevealOverlay { position:fixed; inset:0; z-index:299; pointer-events:none; opacity:0; border-radius:0; }
+  #bgRevealOverlay.reveal { animation:bgReveal 1.5s ease forwards; }
+
+  /* CONFETTI */
+  #confetti-canvas { position:fixed; inset:0; pointer-events:none; z-index:90; }
+
+  /* STATS SCREEN */
+  #stats { flex-direction:column; align-items:center; justify-content:flex-start; min-height:100vh; padding:2rem; text-align:center; gap:1.5rem; overflow-y:auto; }
+  .mastery-bar-wrap { width:100%; max-width:500px; }
+  .mastery-bar-label { display:flex; justify-content:space-between; font-size:0.78rem; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:0.5rem; }
+  .mastery-bar-track { height:12px; background:var(--surface2); border-radius:8px; overflow:hidden; }
+  .mastery-bar-fill { height:100%; background:linear-gradient(90deg,var(--accent),#0096ff); border-radius:8px; transition:width 1s ease; }
+  .mode-stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:0.85rem; width:100%; max-width:680px; }
+  .mode-stat-card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:1.1rem 1.2rem; text-align:left; position:relative; }
+  .mode-stat-card.mastered { border-color:var(--accent); }
+  .mode-stat-top { display:flex; align-items:center; gap:0.6rem; margin-bottom:0.75rem; }
+  .mode-stat-icon { font-size:1.5rem; }
+  .mode-stat-name { font-weight:700; font-size:0.9rem; flex:1; }
+  .mode-stat-badge { font-size:0.62rem; background:rgba(0,212,170,0.15); border:1px solid var(--accent); color:var(--accent); border-radius:20px; padding:0.18rem 0.55rem; font-weight:700; letter-spacing:0.5px; text-transform:uppercase; }
+  .mode-stat-bar-track { height:7px; background:var(--surface2); border-radius:4px; overflow:hidden; margin-bottom:0.4rem; }
+  .mode-stat-bar-fill { height:100%; border-radius:4px; background:linear-gradient(90deg,var(--accent),#0096ff); transition:width 1s ease; }
+  .mode-stat-bar-fill.unplayed { background:var(--surface2); }
+  .mode-stat-nums { display:flex; justify-content:space-between; font-size:0.72rem; color:var(--muted); }
+  .mode-stat-toggle { background:transparent; border:none; border-top:1px solid var(--border); color:var(--muted); font-size:0.65rem; text-transform:uppercase; letter-spacing:1px; cursor:pointer; width:100%; text-align:center; padding:0.4rem 0 0; margin-top:0.55rem; transition:color 0.2s; display:block; }
+  .mode-stat-toggle:hover { color:var(--accent); }
+  .mode-stat-dropdown { display:none; margin-top:0.5rem; }
+  .mode-stat-dropdown.open { display:block; }
+  .mode-stat-region-row { display:flex; align-items:center; gap:0.4rem; margin-bottom:0.3rem; }
+  .mode-stat-region-label { font-size:0.63rem; color:var(--muted); width:72px; flex-shrink:0; }
+  .mode-stat-region-bar { flex:1; height:5px; background:var(--surface2); border-radius:3px; overflow:hidden; }
+  .mode-stat-region-bar-fill { height:100%; background:linear-gradient(90deg,var(--accent),#0096ff); border-radius:3px; transition:width 0.8s ease; }
+  .mode-stat-region-pct { font-size:0.63rem; color:var(--text); width:28px; text-align:right; flex-shrink:0; }
+  .mode-stat-region-frac { font-size:0.58rem; color:var(--muted); width:36px; text-align:right; flex-shrink:0; }
+  .overall-mastery-ring { position:relative; width:110px; height:110px; flex-shrink:0; }
+  .overall-mastery-ring svg { transform:rotate(-90deg); }
+  .overall-mastery-pct { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-family:'Bebas Neue',sans-serif; font-size:1.8rem; color:var(--accent); }
+  .stats-top { display:flex; align-items:center; gap:2rem; flex-wrap:wrap; justify-content:center; width:100%; max-width:680px; background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:1.5rem 2rem; }
+  .stats-top-text { text-align:left; }
+  .stats-top-title { font-family:'Bebas Neue',sans-serif; font-size:1.8rem; letter-spacing:2px; color:var(--text); }
+  .stats-top-sub { font-size:0.82rem; color:var(--muted); margin-top:0.2rem; }
+
+  /* INTRO MASTERY BAR */
+  .intro-mastery { width:100%; max-width:340px; margin-top:1rem; }
+  .intro-mastery-label { display:flex; justify-content:space-between; font-size:0.72rem; color:var(--muted); letter-spacing:1px; text-transform:uppercase; margin-bottom:0.4rem; }
+  .intro-mastery-track { height:8px; background:var(--surface2); border-radius:6px; overflow:hidden; }
+  .intro-mastery-fill { height:100%; background:linear-gradient(90deg,var(--accent),#0096ff); border-radius:6px; transition:width 0.8s ease; }
+
+  /* RESULTS */
+  #results { flex-direction:column; align-items:center; justify-content:center; min-height:100vh; padding:2rem; text-align:center; }
+  .results-breakdown { display:flex; gap:1.25rem; margin:1.5rem 0; flex-wrap:wrap; justify-content:center; }
+  .result-stat { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:1rem 1.5rem; min-width:100px; }
+  .result-stat-num { font-family:'Bebas Neue',sans-serif; font-size:2.4rem; color:var(--accent); }
+  .result-stat-label { font-size:0.7rem; color:var(--muted); text-transform:uppercase; letter-spacing:1px; }
+  .results-grade { font-family:'Bebas Neue',sans-serif; font-size:2rem; letter-spacing:2px; margin-bottom:0.3rem; }
+  .results-end-reason { font-size:0.85rem; color:var(--muted); margin-bottom:1rem; }
+
+  /* ── PROFILE BORDER ANIMATIONS ── */
+  @keyframes auraPulse { 0%,100%{box-shadow:0 0 8px 2px rgba(0,212,170,0.5),0 4px 20px rgba(0,212,170,0.25)} 50%{box-shadow:0 0 28px 8px rgba(0,212,170,0.95),0 4px 30px rgba(0,212,170,0.4)} }
+  @keyframes goldPulse { 0%,100%{box-shadow:0 0 8px 2px rgba(255,215,0,0.5),0 4px 20px rgba(255,215,0,0.2)} 50%{box-shadow:0 0 28px 10px rgba(255,215,0,0.95),0 4px 30px rgba(255,215,0,0.4)} }
+  @keyframes neonFlicker { 0%,88%,100%{box-shadow:0 0 6px 2px #e91e8c,0 0 18px 5px rgba(233,30,140,0.45)} 89%,93%{box-shadow:0 0 2px 1px #e91e8c} 90%,92%{box-shadow:0 0 14px 5px #e91e8c} }
+  @keyframes cosmicRotate { 0%{box-shadow:8px 0 18px rgba(0,212,170,0.9),-8px 0 18px rgba(0,150,255,0.9)} 25%{box-shadow:0 8px 18px rgba(167,139,250,0.9),0 -8px 18px rgba(0,212,170,0.9)} 50%{box-shadow:-8px 0 18px rgba(0,150,255,0.9),8px 0 18px rgba(167,139,250,0.9)} 75%{box-shadow:0 -8px 18px rgba(167,139,250,0.9),0 8px 18px rgba(0,150,255,0.9)} 100%{box-shadow:8px 0 18px rgba(0,212,170,0.9),-8px 0 18px rgba(0,150,255,0.9)} }
+  @keyframes prismaticHue { 0%{border-color:#ff4757;box-shadow:0 0 18px 5px rgba(255,71,87,0.8)} 20%{border-color:#ffd700;box-shadow:0 0 18px 5px rgba(255,215,0,0.8)} 40%{border-color:#00d4aa;box-shadow:0 0 18px 5px rgba(0,212,170,0.8)} 60%{border-color:#0096ff;box-shadow:0 0 18px 5px rgba(0,150,255,0.8)} 80%{border-color:#a78bfa;box-shadow:0 0 18px 5px rgba(167,139,250,0.8)} 100%{border-color:#ff4757;box-shadow:0 0 18px 5px rgba(255,71,87,0.8)} }
+  .border-aura { animation:auraPulse 2s ease-in-out infinite; }
+  .border-gold { border-color:#ffd700!important; animation:goldPulse 2.5s ease-in-out infinite; }
+  .border-neon { border-color:#e91e8c!important; animation:neonFlicker 2.5s step-end infinite; }
+  .border-cosmic { border-color:var(--accent)!important; animation:cosmicRotate 3s linear infinite; }
+  .border-prismatic { animation:prismaticHue 1.8s linear infinite; }
+
+  /* ── ANIMATED BACKGROUNDS ── */
+  @keyframes auroraShift { 0%,100%{background-position:0% 50%} 50%{background-position:100% 50%} }
+  @keyframes cosmosFloat { 0%{background-position:0% 0%} 50%{background-position:100% 100%} 100%{background-position:0% 0%} }
+  @keyframes prismCycle { 0%,100%{background-position:0% 50%} 33%{background-position:100% 50%} 66%{background-position:50% 0%} }
+  [data-bg="galaxy"] { background-size:250% 250%!important; animation:auroraShift 5s ease infinite; }
+  [data-bg="forest"] { background-size:250% 250%!important; animation:cosmosFloat 8s ease infinite; }
+  [data-bg="sunset"] { background-size:350% 350%!important; animation:prismCycle 3.5s ease infinite; }
+
+  /* ── PASSPORT SECTION ── */
+  .passport-section { padding:0 1.5rem 2.5rem; }
+  .passport-header-row { display:flex; align-items:center; justify-content:space-between; padding:1rem 0 0.6rem; border-top:1px solid var(--border); margin-top:0.5rem; }
+  .passport-title { font-family:'Bebas Neue',sans-serif; font-size:1rem; letter-spacing:3px; color:var(--accent); }
+  .passport-count-pill { background:rgba(0,212,170,0.12); border:1px solid rgba(0,212,170,0.25); border-radius:20px; padding:0.18rem 0.6rem; font-size:0.68rem; color:var(--accent); font-weight:700; }
+  .passport-bar-track { height:7px; background:var(--surface2); border-radius:4px; overflow:hidden; margin-bottom:0.9rem; }
+  .passport-bar-fill { height:100%; background:linear-gradient(90deg,var(--accent),#0096ff); border-radius:4px; transition:width 0.8s ease; }
+  .passport-region-row { display:flex; align-items:center; gap:0.5rem; margin-bottom:0.35rem; }
+  .passport-region-label { font-size:0.68rem; color:var(--muted); width:78px; flex-shrink:0; }
+  .passport-region-bar { flex:1; height:5px; background:var(--surface2); border-radius:3px; overflow:hidden; }
+  .passport-region-bar-fill { height:100%; background:linear-gradient(90deg,var(--accent),#0096ff); border-radius:3px; transition:width 0.8s ease; }
+  .passport-region-count { font-size:0.65rem; color:var(--text); width:38px; text-align:right; flex-shrink:0; }
+  .passport-flag-section-label { font-size:0.62rem; text-transform:uppercase; letter-spacing:1.5px; color:var(--muted); margin:0.9rem 0 0.4rem; }
+  .passport-flag-grid { display:flex; flex-wrap:wrap; gap:0.4rem; }
+  .passport-flag-wrap { position:relative; display:inline-flex; }
+  .passport-flag { font-size:1.45rem; cursor:pointer; border-radius:6px; padding:0.18rem 0.22rem; transition:all 0.15s; line-height:1; border:1.5px solid transparent; }
+  .passport-flag:hover { background:rgba(0,212,170,0.12); transform:scale(1.15); }
+  .passport-flag.badged { background:rgba(0,212,170,0.2); border-color:rgba(0,212,170,0.7); box-shadow:0 0 7px rgba(0,212,170,0.35); }
+  .passport-empty { font-size:0.82rem; color:var(--muted); text-align:center; padding:2rem 0; line-height:1.8; }
+  /* Flag name tooltip */
+  .passport-flag-wrap::after { content:attr(data-name); position:absolute; bottom:calc(100% + 5px); left:50%; transform:translateX(-50%); background:rgba(10,14,26,0.97); border:1px solid var(--accent); border-radius:6px; padding:0.18rem 0.55rem; font-size:0.63rem; color:var(--accent); white-space:nowrap; pointer-events:none; opacity:0; transition:opacity 0.15s; z-index:30; }
+  .passport-flag-wrap:hover::after { opacity:1; }
+  /* Border wardrobe preview */
+  .wardrobe-border-swatch { width:32px; height:32px; border-radius:50%; background:var(--surface2); border:2px solid var(--border); flex-shrink:0; }
+
+  /* ── PROFILE CARD EXTRAS ── */
+  .profile-card-badges-row { display:flex; gap:0.3rem; justify-content:center; align-items:center; min-height:1.6rem; }
+  .profile-card-badges-row span { font-size:1.5rem; line-height:1; }
+  .wardrobe-badge-hint { font-size:0.63rem; color:var(--muted); margin-bottom:0.5rem; }
+  .wardrobe-equipped-dot { position:absolute; top:3px; left:4px; width:7px; height:7px; background:var(--accent); border-radius:50%; border:1.5px solid var(--surface2); }
+
+  /* ── WARDROBE SKIN PREVIEW ── */
+  .wardrobe-skin-preview { width:42px; height:30px; border-radius:5px; border:1.5px solid var(--border); overflow:hidden; flex-shrink:0; position:relative; }
+  .wsp-default { background:linear-gradient(135deg,#111827,#1a2235); border-color:rgba(0,212,170,0.3); }
+  .wsp-neon    { background:linear-gradient(135deg,#0a0e1a,#1a2235); border-color:rgba(0,212,170,0.7); box-shadow:0 0 8px rgba(0,212,170,0.45); }
+  .wsp-cyber   { background:linear-gradient(135deg,#0a0800,#1a1400); border-color:rgba(255,230,0,0.55); border-radius:0!important; clip-path:polygon(0 0,calc(100% - 5px) 0,100% 5px,100% 100%,5px 100%,0 calc(100% - 5px)); }
+  .wsp-holo    { background:rgba(10,20,50,0.4); border-color:rgba(150,220,255,0.35); box-shadow:inset 0 1px 0 rgba(255,255,255,0.15); }
+  .wsp-terminal { background:#000300; border-color:#00ff41!important; box-shadow:0 0 8px rgba(0,255,65,0.4); }
+
+  /* ── SKIN: NEON CITY ── */
+  [data-skin="neon"] .region-card,[data-skin="neon"] .mode-card,[data-skin="neon"] .game-header,
+  [data-skin="neon"] .question-card,[data-skin="neon"] .mode-stat-card,[data-skin="neon"] .result-stat,
+  [data-skin="neon"] .stats-top,[data-skin="neon"] .wardrobe-item {
+    box-shadow:0 0 16px rgba(0,212,170,0.09),inset 0 0 24px rgba(0,212,170,0.025)!important;
+    border-color:rgba(0,212,170,0.2)!important;
+  }
+  [data-skin="neon"] .region-card:hover,[data-skin="neon"] .region-card.selected,
+  [data-skin="neon"] .mode-card:hover,[data-skin="neon"] .mode-card.selected {
+    box-shadow:0 0 32px rgba(0,212,170,0.45),inset 0 0 20px rgba(0,212,170,0.07)!important;
+  }
+  [data-skin="neon"] .btn-primary { box-shadow:0 0 24px rgba(0,212,170,0.6),0 4px 20px rgba(0,212,170,0.3)!important; }
+  [data-skin="neon"] .intro-title { filter:drop-shadow(0 0 30px rgba(0,212,170,0.5)); }
+  [data-skin="neon"] .screen-title,[data-skin="neon"] .stats-top-title { text-shadow:0 0 22px rgba(0,212,170,0.35); }
+  [data-skin="neon"] .stat-value { text-shadow:0 0 14px var(--accent); }
+  [data-skin="neon"] .option-btn.correct { box-shadow:0 0 24px rgba(0,212,170,0.6)!important; }
+  [data-skin="neon"] .option-btn.wrong  { box-shadow:0 0 24px rgba(255,71,87,0.5)!important; }
+  [data-skin="neon"] .profile-panel,[data-skin="neon"] .settings-panel { box-shadow:-8px 0 40px rgba(0,212,170,0.12); }
+  [data-skin="neon"] .profile-btn { box-shadow:0 0 22px rgba(0,212,170,0.5)!important; }
+
+  /* ── SKIN: CYBERPUNK ── */
+  [data-skin="cyber"] { --accent:#ffe600; --correct:#ffe600; }
+  [data-skin="cyber"] .region-card,[data-skin="cyber"] .mode-card,
+  [data-skin="cyber"] .result-stat,[data-skin="cyber"] .mode-stat-card,
+  [data-skin="cyber"] .question-card,[data-skin="cyber"] .modal-box {
+    border-radius:0!important;
+    clip-path:polygon(0 0,calc(100% - 11px) 0,100% 11px,100% 100%,11px 100%,0 calc(100% - 11px));
+    border:1px solid rgba(255,230,0,0.3)!important;
+  }
+  [data-skin="cyber"] .game-header { border-radius:0!important; border:1px solid rgba(255,230,0,0.25)!important; }
+  [data-skin="cyber"] .option-btn {
+    border-radius:0 4px 4px 0!important;
+    border-left:3px solid rgba(255,230,0,0.55)!important;
+  }
+  [data-skin="cyber"] .btn-primary,[data-skin="cyber"] .btn-secondary { border-radius:2px!important; }
+  [data-skin="cyber"] .profile-panel,[data-skin="cyber"] .settings-panel { border-radius:0!important; border-color:rgba(255,230,0,0.18)!important; }
+  [data-skin="cyber"] .intro-title {
+    background:linear-gradient(135deg,#ffe600 0%,#ff00c8 50%,#ffe600 100%)!important;
+    background-size:200% auto!important;
+    -webkit-background-clip:text!important; -webkit-text-fill-color:transparent!important;
+    animation:cyberTitle 3s linear infinite!important;
+  }
+  @keyframes cyberTitle { 0%,100%{background-position:0% center} 50%{background-position:100% center} }
+  [data-skin="cyber"] .screen-title { letter-spacing:6px!important; }
+  [data-skin="cyber"] .wardrobe-item,[data-skin="cyber"] .region-card .r-icon { filter:none; }
+  [data-skin="cyber"] .btn-primary { background:linear-gradient(135deg,#ffe600,#ff8800)!important; color:#000!important; }
+
+  /* ── SKIN: HOLOGRAM ── */
+  [data-skin="holo"] .region-card,[data-skin="holo"] .mode-card,[data-skin="holo"] .game-header,
+  [data-skin="holo"] .question-card,[data-skin="holo"] .mode-stat-card,[data-skin="holo"] .result-stat,
+  [data-skin="holo"] .stats-top,[data-skin="holo"] .wardrobe-item {
+    background:rgba(255,255,255,0.04)!important;
+    backdrop-filter:blur(14px) saturate(1.8)!important;
+    -webkit-backdrop-filter:blur(14px) saturate(1.8)!important;
+    border:1px solid rgba(255,255,255,0.11)!important;
+    box-shadow:0 4px 24px rgba(0,0,0,0.2),inset 0 1px 0 rgba(255,255,255,0.09)!important;
+  }
+  [data-skin="holo"] .profile-panel,[data-skin="holo"] .settings-panel {
+    background:rgba(6,12,28,0.75)!important;
+    backdrop-filter:blur(22px)!important;
+    -webkit-backdrop-filter:blur(22px)!important;
+  }
+  [data-skin="holo"] .modal-box {
+    background:rgba(10,18,40,0.7)!important;
+    backdrop-filter:blur(20px)!important;
+    border:1px solid rgba(255,255,255,0.12)!important;
+  }
+  @keyframes holoShimmer { 0%,100%{background-position:0% center} 50%{background-position:200% center} }
+  [data-skin="holo"] .screen-title,[data-skin="holo"] .stats-top-title {
+    background:linear-gradient(90deg,#fff 0%,#00d4aa 20%,#0096ff 40%,#a78bfa 60%,#ff6b9d 80%,#fff 100%)!important;
+    background-size:300% auto!important;
+    -webkit-background-clip:text!important; -webkit-text-fill-color:transparent!important;
+    animation:holoShimmer 5s linear infinite!important;
+  }
+  [data-skin="holo"] .intro-title {
+    background:linear-gradient(90deg,#fff 0%,#00d4aa 15%,#0096ff 35%,#a78bfa 55%,#ff6b9d 75%,#fff 100%)!important;
+    background-size:300% auto!important;
+    -webkit-background-clip:text!important;
+    animation:holoShimmer 4s linear infinite!important;
+  }
+  [data-skin="holo"] .btn-primary {
+    background:linear-gradient(135deg,rgba(0,212,170,0.75),rgba(0,150,255,0.75),rgba(167,139,250,0.75))!important;
+    backdrop-filter:blur(8px)!important;
+  }
+
+  /* ── SKIN: TERMINAL / CRT ── */
+  [data-skin="terminal"] * { border-radius:0!important; }
+  [data-skin="terminal"] { --text:#00ff41; --muted:rgba(0,255,65,0.45); --border:rgba(0,255,65,0.25); --wrong:#ff3333; }
+  [data-skin="terminal"] body { font-family:'Courier New',Courier,monospace!important; }
+  [data-skin="terminal"] .screen-title,[data-skin="terminal"] .btn-primary,[data-skin="terminal"] .modal-title,
+  [data-skin="terminal"] .settings-panel-title,[data-skin="terminal"] .profile-panel-title,
+  [data-skin="terminal"] .wardrobe-header,[data-skin="terminal"] .stat-value,[data-skin="terminal"] .intro-title,
+  [data-skin="terminal"] .capital-quiz-name,[data-skin="terminal"] .currency-quiz-name,
+  [data-skin="terminal"] .streak-banner-label,[data-skin="terminal"] .result-stat-num,
+  [data-skin="terminal"] .timer-text,[data-skin="terminal"] .passport-title,
+  [data-skin="terminal"] .results-grade,[data-skin="terminal"] .profile-card-name { font-family:'Courier New',Courier,monospace!important; }
+  [data-skin="terminal"] .bg-grid { background-image:linear-gradient(rgba(0,255,65,0.05) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,65,0.05) 1px,transparent 1px)!important; }
+  [data-skin="terminal"] .bg-glow { background:radial-gradient(ellipse 100% 100% at 50% 50%,transparent 55%,rgba(0,0,0,0.7) 100%)!important; }
+  [data-skin="terminal"] #skinOverlay { background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.25) 2px,rgba(0,0,0,0.25) 3px)!important; opacity:0.65!important; }
+  [data-skin="terminal"] .region-card,[data-skin="terminal"] .mode-card,[data-skin="terminal"] .game-header,
+  [data-skin="terminal"] .question-card,[data-skin="terminal"] .modal-box,[data-skin="terminal"] .result-stat,
+  [data-skin="terminal"] .mode-stat-card,[data-skin="terminal"] .stats-top {
+    border-radius:0!important; border:1px solid rgba(0,255,65,0.35)!important; box-shadow:0 0 8px rgba(0,255,65,0.07)!important;
+  }
+  [data-skin="terminal"] .region-card:hover,[data-skin="terminal"] .region-card.selected,
+  [data-skin="terminal"] .mode-card:hover,[data-skin="terminal"] .mode-card.selected {
+    border-color:#00ff41!important; box-shadow:0 0 18px rgba(0,255,65,0.35)!important;
+  }
+  [data-skin="terminal"] .option-btn { border-radius:0!important; border:1px solid rgba(0,255,65,0.3)!important; text-align:left!important; }
+  [data-skin="terminal"] .option-btn::before { content:'> '; color:rgba(0,255,65,0.5); font-family:'Courier New',Courier,monospace; }
+  [data-skin="terminal"] .option-btn:hover:not(:disabled) { border-color:#00ff41!important; box-shadow:0 0 10px rgba(0,255,65,0.2)!important; }
+  [data-skin="terminal"] .option-btn.correct { box-shadow:0 0 18px rgba(0,255,65,0.5)!important; }
+  [data-skin="terminal"] .option-btn.wrong { border-color:#ff3333!important; }
+  [data-skin="terminal"] .btn-primary {
+    background:transparent!important; border:2px solid #00ff41!important; color:#00ff41!important;
+    border-radius:0!important; letter-spacing:4px!important;
+    box-shadow:0 0 16px rgba(0,255,65,0.25),inset 0 0 16px rgba(0,255,65,0.04)!important;
+    text-shadow:0 0 10px rgba(0,255,65,0.7)!important;
+  }
+  [data-skin="terminal"] .btn-primary:hover { background:rgba(0,255,65,0.07)!important; box-shadow:0 0 28px rgba(0,255,65,0.45)!important; transform:none!important; }
+  [data-skin="terminal"] .btn-secondary { border-radius:0!important; border-color:rgba(0,255,65,0.3)!important; }
+  [data-skin="terminal"] .btn-quit { border-radius:0!important; font-family:'Courier New',Courier,monospace!important; }
+  [data-skin="terminal"] .intro-title {
+    background:none!important; -webkit-background-clip:unset!important;
+    -webkit-text-fill-color:#00ff41!important; color:#00ff41!important;
+    text-shadow:0 0 30px rgba(0,255,65,0.55),0 0 60px rgba(0,255,65,0.25)!important;
+    letter-spacing:6px!important;
+  }
+  @keyframes termCursorBlink { 0%,49%{opacity:1} 50%,100%{opacity:0} }
+  [data-skin="terminal"] .intro-title::after { content:'_'; display:inline-block; animation:termCursorBlink 1s step-end infinite; -webkit-text-fill-color:#00ff41; vertical-align:baseline; }
+  [data-skin="terminal"] .capital-quiz-name,[data-skin="terminal"] .currency-quiz-name {
+    background:none!important; -webkit-background-clip:unset!important;
+    -webkit-text-fill-color:#00ff41!important; text-shadow:0 0 16px rgba(0,255,65,0.5)!important;
+  }
+  [data-skin="terminal"] .screen-title { text-shadow:0 0 14px rgba(0,255,65,0.4)!important; letter-spacing:4px!important; }
+  [data-skin="terminal"] .stat-value { text-shadow:0 0 8px rgba(0,255,65,0.5)!important; }
+  [data-skin="terminal"] .progress-bar-fill,[data-skin="terminal"] .mastery-bar-fill,
+  [data-skin="terminal"] .mode-stat-bar-fill,[data-skin="terminal"] .passport-bar-fill,
+  [data-skin="terminal"] .intro-mastery-fill,[data-skin="terminal"] .passport-region-bar-fill,
+  [data-skin="terminal"] .mode-stat-region-bar-fill { background:#00ff41!important; box-shadow:0 0 4px rgba(0,255,65,0.4)!important; }
+  [data-skin="terminal"] .map-container { border-radius:0!important; border-color:#00ff41!important; filter:sepia(1) hue-rotate(90deg) saturate(6) brightness(0.55)!important; }
+  [data-skin="terminal"] .profile-panel,[data-skin="terminal"] .settings-panel {
+    border-radius:0!important; border-color:rgba(0,255,65,0.35)!important; box-shadow:-2px 0 16px rgba(0,255,65,0.1)!important;
+  }
+  [data-skin="terminal"] .profile-panel-header,[data-skin="terminal"] .settings-panel-header {
+    background:rgba(0,255,65,0.04)!important; border-bottom-color:rgba(0,255,65,0.35)!important;
+  }
+  [data-skin="terminal"] .profile-btn { border-radius:0!important; border-color:#00ff41!important; box-shadow:0 0 12px rgba(0,255,65,0.2)!important; }
+  [data-skin="terminal"] .settings-btn { border-radius:0!important; border-color:rgba(0,255,65,0.4)!important; }
+  [data-skin="terminal"] .region-badge,[data-skin="terminal"] .q-type-badge,
+  [data-skin="terminal"] .mode-stat-badge { border-radius:0!important; }
+  [data-skin="terminal"] .unlock-toast,[data-skin="terminal"] .feedback-toast { border-radius:0!important; }
+  [data-skin="terminal"] .streak-banner-inner { border-radius:0!important; border-color:#00ff41!important; box-shadow:0 0 30px rgba(0,255,65,0.4)!important; background:#040c04!important; }
+  [data-skin="terminal"] .streak-banner-label { background:none!important; -webkit-text-fill-color:#00ff41!important; text-shadow:0 0 16px rgba(0,255,65,0.7)!important; }
+  [data-skin="terminal"] .timer-ring-bg { stroke:rgba(0,255,65,0.15)!important; }
+  [data-skin="terminal"] .logo-badge { border-radius:0!important; background:rgba(0,255,65,0.08)!important; border:2px solid #00ff41!important; box-shadow:0 0 20px rgba(0,255,65,0.3)!important; animation:none!important; }
+  [data-skin="terminal"] .wardrobe-item { border-radius:0!important; }
+  [data-skin="terminal"] .wardrobe-item.equipped { border-color:#00ff41!important; }
+  [data-skin="terminal"] .profile-card-display { border-radius:0!important; }
+  [data-skin="terminal"] .dot-tooltip { border-radius:0!important; border-color:#00ff41!important; }
+  [data-skin="terminal"] .settings-name-input,[data-skin="terminal"] .welcome-name-input { border-radius:0!important; }
+  [data-skin="terminal"] .settings-name-save { border-radius:0!important; background:#00ff41!important; color:#000!important; }
+  [data-skin="terminal"] .settings-sel-btn.active { background:rgba(0,255,65,0.12)!important; border-color:#00ff41!important; color:#00ff41!important; }
+  [data-skin="terminal"] .settings-toggle-wrap input:checked + .settings-toggle-track { background:rgba(0,255,65,0.15)!important; border-color:#00ff41!important; }
+  [data-skin="terminal"] .settings-toggle-wrap input:checked + .settings-toggle-track::after { background:#00ff41!important; }
+  [data-skin="terminal"] .settings-reset-btn { border-radius:0!important; }
+  [data-skin="terminal"] .welcome-box { border-radius:0!important; border-color:#00ff41!important; }
+
+  /* ── SETTINGS BUTTON ── */
+  .settings-btn { position:fixed; top:1rem; left:1rem; z-index:250; width:44px; height:44px; border-radius:50%; background:var(--surface); border:2px solid var(--border); cursor:pointer; display:none; align-items:center; justify-content:center; font-size:1.2rem; box-shadow:0 4px 16px rgba(0,0,0,0.2); transition:transform 0.25s; padding:0; }
+  .settings-btn:hover { transform:scale(1.1); border-color:var(--muted); }
+
+  /* ── SETTINGS OVERLAY + PANEL ── */
+  .settings-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:280; display:none; backdrop-filter:blur(4px); }
+  .settings-overlay.show { display:block; }
+  .settings-panel { position:fixed; top:0; left:0; width:min(380px,100vw); height:100vh; background:var(--surface); border-right:1px solid var(--border); z-index:290; transform:translateX(-100%); transition:transform 0.35s cubic-bezier(0.4,0,0.2,1); overflow-y:auto; display:flex; flex-direction:column; }
+  .settings-panel.open { transform:translateX(0); }
+  .settings-panel-header { display:flex; align-items:center; justify-content:space-between; padding:1.25rem 1.5rem; border-bottom:1px solid var(--border); flex-shrink:0; }
+  .settings-panel-title { font-family:'Bebas Neue',sans-serif; font-size:1.4rem; letter-spacing:2px; }
+  .settings-panel-close { background:transparent; border:1px solid var(--border); color:var(--muted); border-radius:8px; width:34px; height:34px; cursor:pointer; font-size:1rem; transition:all 0.2s; }
+  .settings-panel-close:hover { border-color:var(--wrong); color:var(--wrong); }
+  .settings-body { padding:1.25rem 1.5rem 3rem; }
+  .settings-section { margin-bottom:1.75rem; }
+  .settings-section-title { font-family:'Bebas Neue',sans-serif; font-size:0.85rem; letter-spacing:3px; color:var(--accent); border-top:1px solid var(--border); padding-top:0.85rem; margin-bottom:0.85rem; }
+  .settings-row { display:flex; align-items:center; justify-content:space-between; gap:0.75rem; margin-bottom:0.85rem; }
+  .settings-row-label { font-size:0.88rem; font-weight:500; }
+  .settings-row-sub { font-size:0.67rem; color:var(--muted); margin-top:0.1rem; }
+  .settings-selector { display:flex; gap:0.35rem; flex-shrink:0; }
+  .settings-sel-btn { background:var(--surface2); border:1.5px solid var(--border); color:var(--muted); border-radius:8px; padding:0.35rem 0.65rem; font-family:'DM Sans',sans-serif; font-size:0.82rem; font-weight:600; cursor:pointer; transition:all 0.2s; }
+  .settings-sel-btn:hover { border-color:var(--accent); color:var(--text); }
+  .settings-sel-btn.active { background:rgba(0,212,170,0.12); border-color:var(--accent); color:var(--accent); }
+  .settings-toggle-wrap { position:relative; width:42px; height:24px; flex-shrink:0; cursor:pointer; }
+  .settings-toggle-wrap input { opacity:0; width:0; height:0; position:absolute; }
+  .settings-toggle-track { position:absolute; inset:0; background:var(--surface2); border:1.5px solid var(--border); border-radius:12px; transition:all 0.25s; }
+  .settings-toggle-track::after { content:''; position:absolute; left:3px; top:50%; transform:translateY(-50%); width:16px; height:16px; background:var(--muted); border-radius:50%; transition:all 0.25s; }
+  .settings-toggle-wrap input:checked + .settings-toggle-track { background:rgba(0,212,170,0.15); border-color:var(--accent); }
+  .settings-toggle-wrap input:checked + .settings-toggle-track::after { left:calc(100% - 19px); background:var(--accent); }
+  .settings-name-input { width:100%; background:var(--surface2); border:1.5px solid var(--border); color:var(--text); font-family:'DM Sans',sans-serif; font-size:0.95rem; padding:0.6rem 0.85rem; border-radius:10px; outline:none; transition:border-color 0.2s; margin-bottom:0.5rem; }
+  .settings-name-input:focus { border-color:var(--accent); }
+  .settings-name-save { background:var(--accent); color:#000; border:none; padding:0.5rem 1.2rem; border-radius:8px; font-family:'DM Sans',sans-serif; font-size:0.85rem; font-weight:700; cursor:pointer; transition:opacity 0.2s; }
+  .settings-name-save:hover { opacity:0.85; }
+  .settings-reset-btn { width:100%; background:transparent; border:1.5px solid rgba(255,71,87,0.35); color:rgba(255,71,87,0.75); border-radius:10px; padding:0.75rem; font-family:'Bebas Neue',sans-serif; font-size:1rem; letter-spacing:2px; cursor:pointer; transition:all 0.2s; }
+  .settings-reset-btn:hover { background:rgba(255,71,87,0.1); border-color:#ff4757; color:#ff4757; }
+
+  /* ── WELCOME MODAL ── */
+  .welcome-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:400; display:none; align-items:center; justify-content:center; backdrop-filter:blur(8px); }
+  .welcome-overlay.show { display:flex; }
+  .welcome-box { background:var(--surface); border:1px solid rgba(0,212,170,0.3); border-radius:24px; padding:2.5rem 2rem; max-width:360px; width:90%; text-align:center; box-shadow:0 20px 80px rgba(0,0,0,0.6); }
+  .welcome-globe { font-size:3.5rem; margin-bottom:1rem; animation:float 3s ease-in-out infinite; display:block; }
+  .welcome-title { font-family:'Bebas Neue',sans-serif; font-size:2.4rem; letter-spacing:3px; background:linear-gradient(135deg,#fff 0%,var(--accent) 60%,#0096ff 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; margin-bottom:0.3rem; }
+  .welcome-sub { font-size:0.88rem; color:var(--muted); margin-bottom:1.75rem; line-height:1.6; }
+  .welcome-name-input { width:100%; background:var(--surface2); border:1.5px solid var(--border); color:var(--text); font-family:'DM Sans',sans-serif; font-size:1.1rem; font-weight:600; padding:0.75rem 1rem; border-radius:12px; outline:none; text-align:center; transition:border-color 0.2s; margin-bottom:1.25rem; }
+  .welcome-name-input:focus { border-color:var(--accent); }
+  .welcome-name-input::placeholder { color:var(--muted); }
+</style>
 </head>
 <body>
-    <h1>Geography Game</h1>
-    <div id="map">
-        <!-- Add countries and their respective click detection -->
-        <div class="country" id="france" onclick="detectClick('France')"></div>
-        <div class="country" id="french-guiana" onclick="detectClick('French Guiana')"></div>
-        <!-- Add other countries here with appropriate click detection -->
+<div class="bg-grid"></div>
+<div class="bg-glow"></div>
+<canvas id="confetti-canvas"></canvas>
+<div id="skinOverlay" style="position:fixed;inset:0;pointer-events:none;z-index:490;opacity:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.06) 2px,rgba(0,0,0,0.06) 4px);transition:opacity 0.4s"></div>
+
+<!-- INTRO -->
+<div id="intro" class="screen active">
+  <div class="logo-badge">🌍</div>
+  <div class="intro-title">GeoMaster</div>
+  <div class="intro-sub-text">World Geography Challenge</div>
+  <div class="intro-mastery" id="introMasteryWrap">
+    <div class="intro-mastery-label"><span>OVERALL MASTERY</span><span id="introMasteryPct">0%</span></div>
+    <div class="intro-mastery-track"><div class="intro-mastery-fill" id="introMasteryFill" style="width:0%"></div></div>
+  </div>
+  <div style="display:flex;gap:1rem;margin-top:1.5rem;flex-wrap:wrap;justify-content:center;">
+    <button class="btn-primary" onclick="showScreen('challenge-select')">PLAY</button>
+    <button class="btn-secondary" onclick="showStats()">STATS</button>
+  </div>
+</div>
+
+<!-- REGION SELECT -->
+<div id="region-select" class="screen">
+  <div class="screen-title">CHOOSE A REGION</div>
+  <div class="screen-sub">Where in the world do you want to explore?</div>
+  <div class="region-grid">
+    <div class="region-card selected" data-region="world" onclick="selectRegion(this)">
+      <div class="r-icon">🌐</div><div class="r-name">Whole World</div><div class="r-count" id="rc-world"></div>
     </div>
-    <div id="scoreboard">Score: <span id="score">0</span></div>
-    <button id="startButton" onclick="startGame()">Start Game</button>
-    <div id="timer">Time left: <span id="time">60</span></div>
-    <script>
-        let score = 0;
-        let timeLeft = 60;
-        let timer; // Timer variable
+    <div class="region-card" data-region="Europe" onclick="selectRegion(this)">
+      <div class="r-icon">🏰</div><div class="r-name">Europe</div><div class="r-count" id="rc-Europe"></div>
+    </div>
+    <div class="region-card" data-region="North America" onclick="selectRegion(this)">
+      <div class="r-icon">🌎</div><div class="r-name">North America</div><div class="r-count" id="rc-NorthAmerica"></div>
+    </div>
+    <div class="region-card" data-region="South America" onclick="selectRegion(this)">
+      <div class="r-icon">🌎</div><div class="r-name">South America</div><div class="r-count" id="rc-SouthAmerica"></div>
+    </div>
+    <div class="region-card" data-region="Asia" onclick="selectRegion(this)">
+      <div class="r-icon">🌏</div><div class="r-name">Asia</div><div class="r-count" id="rc-Asia"></div>
+    </div>
+    <div class="region-card" data-region="Africa" onclick="selectRegion(this)">
+      <div class="r-icon">🌍</div><div class="r-name">Africa</div><div class="r-count" id="rc-Africa"></div>
+    </div>
+    <div class="region-card" data-region="Oceania" onclick="selectRegion(this)">
+      <div class="r-icon">🦘</div><div class="r-name">Oceania</div><div class="r-count" id="rc-Oceania"></div>
+    </div>
+  </div>
+  <div class="region-nav">
+    <button class="btn-secondary" onclick="goBackToChallenge()">← BACK</button>
+    <button class="btn-primary" onclick="startGame()">START GAME</button>
+  </div>
+</div>
 
-        function startGame() {
-            score = 0;
-            timeLeft = 60;
-            document.getElementById('score').innerText = score;
-            document.getElementById('time').innerText = timeLeft;
-            timer = setInterval(updateTimer, 1000);
+<!-- CHALLENGE SELECT -->
+<div id="challenge-select" class="screen">
+
+  <!-- Panel 1: Category selection -->
+  <div id="categoryPanel" style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:1.5rem;width:100%;max-width:700px;">
+    <div class="screen-title">CHOOSE YOUR CHALLENGE</div>
+    <div class="screen-sub">Select a category to get started</div>
+    <div class="mode-grid" id="categoryGrid">
+      <div class="mode-card" onclick="selectCategory('flags')">
+        <div class="m-icon">🚩</div><div class="m-name">Flags</div>
+        <div class="m-desc">Test your flag knowledge</div>
+      </div>
+      <div class="mode-card" onclick="selectCategory('capitals')">
+        <div class="m-icon">🏛️</div><div class="m-name">Capitals</div>
+        <div class="m-desc">Test your capital knowledge</div>
+      </div>
+      <div class="mode-card" onclick="selectCategory('identify')">
+        <div class="m-icon">🗺️</div><div class="m-name">Map Challenge</div>
+        <div class="m-desc">Find countries on the map</div>
+      </div>
+      <div class="mode-card" onclick="selectCategory('currency')">
+        <div class="m-icon">💰</div><div class="m-name">Currency</div>
+        <div class="m-desc">Match currencies to countries</div>
+      </div>
+      <div class="mode-card" onclick="selectCategory('mixed')">
+        <div class="m-icon">🎯</div><div class="m-name">Mixed</div>
+        <div class="m-desc">All modes combined</div>
+      </div>
+    </div>
+    <button class="btn-secondary" onclick="showScreen('intro')">← BACK</button>
+  </div>
+
+  <!-- Panel 2: Sub-mode selection (Flags or Capitals) -->
+  <div id="submodePanel" style="display:none;flex-direction:column;align-items:center;text-align:center;gap:1.5rem;width:100%;max-width:500px;">
+    <div class="subpanel-cat-icon" id="subpanelIcon">🚩</div>
+    <div class="screen-title" id="subpanelTitle">FLAGS</div>
+    <div class="screen-sub">Choose your challenge type</div>
+    <div class="mode-grid" id="submodeGrid"></div>
+    <button class="btn-secondary" onclick="showCategoryPanel()">← BACK</button>
+  </div>
+
+</div>
+
+<!-- STATS -->
+<div id="stats" class="screen">
+  <div class="screen-title">YOUR PROGRESS</div>
+  <div class="stats-top">
+    <div class="overall-mastery-ring">
+      <svg width="110" height="110" viewBox="0 0 110 110">
+        <circle cx="55" cy="55" r="46" fill="none" stroke="var(--surface2)" stroke-width="10"/>
+        <circle id="masteryRingFill" cx="55" cy="55" r="46" fill="none" stroke="url(#mg)" stroke-width="10" stroke-linecap="round" stroke-dasharray="289" stroke-dashoffset="289"/>
+        <defs><linearGradient id="mg" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="var(--accent)"/><stop offset="100%" stop-color="#0096ff"/></linearGradient></defs>
+      </svg>
+      <div class="overall-mastery-pct" id="masteryRingPct">0%</div>
+    </div>
+    <div class="stats-top-text">
+      <div class="stats-top-title">OVERALL MASTERY</div>
+      <div class="stats-top-sub" id="masteredCount">0 of 7 modes mastered</div>
+      <div class="stats-top-sub" style="margin-top:0.3rem;font-size:0.72rem;">Mastered = 80%+ accuracy</div>
+    </div>
+  </div>
+  <div class="mode-stats-grid" id="modeStatsGrid"></div>
+  <button class="btn-secondary" onclick="showScreen('intro')">← BACK</button>
+</div>
+
+<!-- GAME -->
+<div id="game" class="screen">
+  <div class="game-header">
+    <button class="btn-quit" onclick="confirmQuit()">✕ QUIT</button>
+    <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBar" style="width:0%"></div></div>
+    <div class="stat-box"><div class="stat-label">Q</div><div class="stat-value" id="qNumDisplay">1/10</div></div>
+    <div class="stat-box" id="regionHeaderBox" style="display:none">
+      <div class="stat-label">Region</div>
+      <div style="font-size:0.72rem;font-weight:600;color:#5baddf;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:75px" id="regionHeaderLabel"></div>
+    </div>
+    <div class="timer-ring-wrap">
+      <svg width="48" height="48" viewBox="0 0 48 48">
+        <circle class="timer-ring-bg" cx="24" cy="24" r="20"/>
+        <circle class="timer-ring-progress" id="timerRing" cx="24" cy="24" r="20" stroke-dasharray="125.66" stroke-dashoffset="0"/>
+      </svg>
+      <div class="timer-text" id="timerText">15</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">Lives</div>
+      <div class="lives-display">
+        <span class="life-heart" id="life0">❤️</span>
+        <span class="life-heart" id="life1">❤️</span>
+        <span class="life-heart" id="life2">❤️</span>
+      </div>
+    </div>
+    <div class="stat-box"><div class="stat-label">Streak</div><div class="stat-value" id="streakDisplay">0</div></div>
+  </div>
+
+  <div class="question-card">
+    <div class="q-flag" id="qFlag"></div>
+    <div class="q-text" id="qText">Loading...</div>
+    <div class="q-type-badge" id="qBadge">FLAG</div>
+  </div>
+
+  <!-- Flag Quiz mode — self-contained centered layout -->
+  <div class="flagquiz-body" id="flagquizBody">
+    <div class="flag-quiz-card">
+      <div class="flag-quiz-emoji" id="fqEmoji">🏳️</div>
+      <div class="flag-quiz-question">Which country does this flag belong to?</div>
+    </div>
+    <div class="options-grid" id="fqOptionsGrid"></div>
+  </div>
+
+  <!-- Currency Quiz mode — self-contained centered layout -->
+  <div class="currencyquiz-body" id="currencyquizBody">
+    <div class="currency-quiz-card">
+      <div class="currency-quiz-icon" id="cqFlagIcon">🌍</div>
+      <div class="currency-quiz-name" id="cqCurrencyName">France</div>
+      <div class="currency-quiz-question">What currency does this country use?</div>
+    </div>
+    <div class="options-grid" id="crqOptionsGrid"></div>
+  </div>
+
+  <!-- Capital Quiz mode — self-contained centered layout -->
+  <div class="capitalquiz-body" id="capitalquizBody">
+    <div class="capital-quiz-card">
+      <div class="capital-quiz-icon">🏛️</div>
+      <div class="capital-quiz-name" id="cqCapitalName">Paris</div>
+      <div class="capital-quiz-question">Which country is this the capital of?</div>
+    </div>
+    <div class="options-grid" id="cqOptionsGrid"></div>
+  </div>
+
+  <div class="map-container" id="mapContainer">
+    <div class="zoom-hint">🖱 Scroll to zoom · Drag to pan</div>
+    <div class="dot-tooltip" id="dotTooltip"></div>
+  </div>
+
+  <div class="options-grid" id="optionsGrid" style="display:none"></div>
+</div>
+
+<!-- RESULTS -->
+<div id="results" class="screen">
+  <div class="logo-badge" id="resultsIcon" style="font-size:2.5rem">🏆</div>
+  <div class="results-grade" id="resultsGrade"></div>
+  <div class="results-end-reason" id="resultsEndReason"></div>
+  <div class="results-breakdown">
+    <div class="result-stat"><div class="result-stat-num" id="resCorrect">0</div><div class="result-stat-label">Correct</div></div>
+    <div class="result-stat"><div class="result-stat-num" id="resWrong">0</div><div class="result-stat-label">Wrong</div></div>
+    <div class="result-stat"><div class="result-stat-num" id="resStreak">0</div><div class="result-stat-label">Best Streak</div></div>
+  </div>
+  <div style="display:flex;gap:1rem;flex-wrap:wrap;justify-content:center;margin-top:0.5rem">
+    <button class="btn-primary" onclick="startGame()">PLAY AGAIN</button>
+    <button class="btn-secondary" onclick="goHome()">HOME</button>
+  </div>
+</div>
+
+<!-- QUIT MODAL -->
+<div class="modal-overlay" id="quitModal">
+  <div class="modal-box">
+    <div class="modal-title">QUIT GAME?</div>
+    <div class="modal-sub">Your progress will be lost. Are you sure?</div>
+    <div class="modal-actions">
+      <button class="modal-btn-cancel" onclick="closeQuitModal()">KEEP PLAYING</button>
+      <button class="modal-btn-quit" onclick="goHome()">QUIT</button>
+    </div>
+  </div>
+</div>
+
+<div class="feedback-toast" id="feedbackToast"></div>
+<div id="streakBanner">
+  <div class="streak-banner-inner">
+    <div class="streak-banner-emoji" id="streakBannerEmoji">🔥</div>
+    <div class="streak-banner-label" id="streakBannerLabel">5 STREAK</div>
+    <div class="streak-banner-sub" id="streakBannerSub">ON FIRE!</div>
+  </div>
+</div>
+
+<!-- SETTINGS BUTTON -->
+<button class="settings-btn" id="settingsBtn" onclick="openSettings()">⚙️</button>
+
+<!-- PROFILE BUTTON -->
+<button class="profile-btn" id="profileBtn" onclick="openProfile()" style="display:none">
+  <span id="profileBtnAvatar">🧑</span>
+  <div class="profile-btn-badges" id="profileBtnBadges"></div>
+</button>
+
+<!-- PROFILE OVERLAY -->
+<div class="profile-overlay" id="profileOverlay" onclick="closeProfile()"></div>
+
+<!-- PROFILE PANEL -->
+<div class="profile-panel" id="profilePanel">
+  <div class="profile-panel-header">
+    <div class="profile-panel-title">PROFILE</div>
+    <button class="profile-panel-close" onclick="closeProfile()">✕</button>
+  </div>
+  <div class="profile-card-display" id="profileCardDisplay">
+    <div class="profile-card-avatar-row">
+      <div class="profile-card-avatar" id="profileCardAvatar">🧑</div>
+      <div class="profile-card-badge" id="profileCardBadge"></div>
+    </div>
+    <div class="profile-card-name" id="profileCardName" onclick="editName()">Explorer</div>
+    <input class="profile-card-name-input" id="profileNameInput" maxlength="20" onblur="saveName()" onkeydown="if(event.key==='Enter')this.blur()" style="display:none"/>
+    <div class="profile-card-meta" id="profileCardMeta">0 games · 0% mastery</div>
+  </div>
+  <div class="wardrobe-container">
+    <div class="wardrobe-header">WARDROBE</div>
+    <div class="wardrobe-section">
+      <div class="wardrobe-section-label">Avatar</div>
+      <div class="wardrobe-grid" id="wAvatars"></div>
+    </div>
+    <div class="wardrobe-section">
+      <div class="wardrobe-section-label">Badge</div>
+      <div class="wardrobe-grid" id="wBadges"></div>
+    </div>
+    <div class="wardrobe-section">
+      <div class="wardrobe-section-label">Background</div>
+      <div class="wardrobe-grid" id="wBackgrounds"></div>
+    </div>
+    <div class="wardrobe-section">
+      <div class="wardrobe-section-label">Theme</div>
+      <div class="wardrobe-grid" id="wThemes"></div>
+    </div>
+    <div class="wardrobe-section">
+      <div class="wardrobe-section-label">Border</div>
+      <div class="wardrobe-grid" id="wBorders"></div>
+    </div>
+    <div class="wardrobe-section">
+      <div class="wardrobe-section-label">Celebration</div>
+      <div class="wardrobe-grid" id="wCelebrations"></div>
+    </div>
+    <div class="wardrobe-section">
+      <div class="wardrobe-section-label">Skin</div>
+      <div class="wardrobe-grid" id="wSkins"></div>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS OVERLAY -->
+<div class="settings-overlay" id="settingsOverlay" onclick="closeSettings()"></div>
+
+<!-- SETTINGS PANEL -->
+<div class="settings-panel" id="settingsPanel">
+  <div class="settings-panel-header">
+    <div class="settings-panel-title">⚙️ SETTINGS</div>
+    <button class="settings-panel-close" onclick="closeSettings()">✕</button>
+  </div>
+  <div class="settings-body" id="settingsBody"></div>
+</div>
+
+<!-- RESET CONFIRM MODAL -->
+<div class="modal-overlay" id="resetConfirmModal">
+  <div class="modal-box">
+    <div class="modal-title" style="color:var(--wrong)">RESET EVERYTHING?</div>
+    <div class="modal-sub">This permanently erases all stats, passport stamps, profile, and settings. Cannot be undone.</div>
+    <div class="modal-actions">
+      <button class="modal-btn-cancel" onclick="closeResetModal()">CANCEL</button>
+      <button class="modal-btn-quit" onclick="doReset()">RESET</button>
+    </div>
+  </div>
+</div>
+
+<!-- WELCOME MODAL -->
+<div class="welcome-overlay" id="welcomeOverlay">
+  <div class="welcome-box">
+    <span class="welcome-globe">🌍</span>
+    <div class="welcome-title">WELCOME!</div>
+    <div class="welcome-sub">What should we call you, explorer?<br>You can always change this in Settings.</div>
+    <input class="welcome-name-input" id="welcomeNameInput" maxlength="20" placeholder="Enter your name..." onkeydown="if(event.key==='Enter')saveWelcomeName()"/>
+    <button class="btn-primary" onclick="saveWelcomeName()" style="font-size:1rem;padding:0.8rem 2.5rem;letter-spacing:2px">LET'S GO!</button>
+  </div>
+</div>
+
+<!-- UNLOCK TOAST -->
+<div class="unlock-toast" id="unlockToast">
+  <div class="unlock-toast-icon" id="unlockToastIcon">🎉</div>
+  <div>
+    <div class="unlock-toast-title">NEW UNLOCK!</div>
+    <div class="unlock-toast-items" id="unlockToastItems"></div>
+  </div>
+</div>
+
+<!-- EFFECT OVERLAYS -->
+<div id="themeFlashOverlay"></div>
+<div id="bgRevealOverlay"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  COMPLETE COUNTRY DATA — all ~195 sovereign nations
+// ═══════════════════════════════════════════════════════
+const COUNTRIES = [
+  // ── EUROPE (44) ──
+  {id:"AL",name:"Albania",         capital:"Tirana",          flag:"🇦🇱",region:"Europe"},
+  {id:"AD",name:"Andorra",         capital:"Andorra la Vella",flag:"🇦🇩",region:"Europe"},
+  {id:"AT",name:"Austria",         capital:"Vienna",          flag:"🇦🇹",region:"Europe"},
+  {id:"BY",name:"Belarus",         capital:"Minsk",           flag:"🇧🇾",region:"Europe"},
+  {id:"BE",name:"Belgium",         capital:"Brussels",        flag:"🇧🇪",region:"Europe"},
+  {id:"BA",name:"Bosnia & Herz.",  capital:"Sarajevo",        flag:"🇧🇦",region:"Europe"},
+  {id:"BG",name:"Bulgaria",        capital:"Sofia",           flag:"🇧🇬",region:"Europe"},
+  {id:"HR",name:"Croatia",         capital:"Zagreb",          flag:"🇭🇷",region:"Europe"},
+  {id:"CY",name:"Cyprus",          capital:"Nicosia",         flag:"🇨🇾",region:"Europe"},
+  {id:"CZ",name:"Czech Republic",  capital:"Prague",          flag:"🇨🇿",region:"Europe"},
+  {id:"DK",name:"Denmark",         capital:"Copenhagen",      flag:"🇩🇰",region:"Europe"},
+  {id:"EE",name:"Estonia",         capital:"Tallinn",         flag:"🇪🇪",region:"Europe"},
+  {id:"FI",name:"Finland",         capital:"Helsinki",        flag:"🇫🇮",region:"Europe"},
+  {id:"FR",name:"France",          capital:"Paris",           flag:"🇫🇷",region:"Europe"},
+  {id:"DE",name:"Germany",         capital:"Berlin",          flag:"🇩🇪",region:"Europe"},
+  {id:"GR",name:"Greece",          capital:"Athens",          flag:"🇬🇷",region:"Europe"},
+  {id:"HU",name:"Hungary",         capital:"Budapest",        flag:"🇭🇺",region:"Europe"},
+  {id:"IS",name:"Iceland",         capital:"Reykjavik",       flag:"🇮🇸",region:"Europe"},
+  {id:"IE",name:"Ireland",         capital:"Dublin",          flag:"🇮🇪",region:"Europe"},
+  {id:"IT",name:"Italy",           capital:"Rome",            flag:"🇮🇹",region:"Europe"},
+  {id:"XK",name:"Kosovo",          capital:"Pristina",        flag:"🇽🇰",region:"Europe"},
+  {id:"LV",name:"Latvia",          capital:"Riga",            flag:"🇱🇻",region:"Europe"},
+  {id:"LI",name:"Liechtenstein",   capital:"Vaduz",           flag:"🇱🇮",region:"Europe"},
+  {id:"LT",name:"Lithuania",       capital:"Vilnius",         flag:"🇱🇹",region:"Europe"},
+  {id:"LU",name:"Luxembourg",      capital:"Luxembourg City", flag:"🇱🇺",region:"Europe"},
+  {id:"MT",name:"Malta",           capital:"Valletta",        flag:"🇲🇹",region:"Europe"},
+  {id:"MD",name:"Moldova",         capital:"Chișinău",        flag:"🇲🇩",region:"Europe"},
+  {id:"MC",name:"Monaco",          capital:"Monaco",          flag:"🇲🇨",region:"Europe"},
+  {id:"ME",name:"Montenegro",      capital:"Podgorica",       flag:"🇲🇪",region:"Europe"},
+  {id:"NL",name:"Netherlands",     capital:"Amsterdam",       flag:"🇳🇱",region:"Europe"},
+  {id:"MK",name:"North Macedonia", capital:"Skopje",          flag:"🇲🇰",region:"Europe"},
+  {id:"NO",name:"Norway",          capital:"Oslo",            flag:"🇳🇴",region:"Europe"},
+  {id:"PL",name:"Poland",          capital:"Warsaw",          flag:"🇵🇱",region:"Europe"},
+  {id:"PT",name:"Portugal",        capital:"Lisbon",          flag:"🇵🇹",region:"Europe"},
+  {id:"RO",name:"Romania",         capital:"Bucharest",       flag:"🇷🇴",region:"Europe"},
+  {id:"RU",name:"Russia",          capital:"Moscow",          flag:"🇷🇺",region:"Europe"},
+  {id:"SM",name:"San Marino",      capital:"San Marino",      flag:"🇸🇲",region:"Europe"},
+  {id:"RS",name:"Serbia",          capital:"Belgrade",        flag:"🇷🇸",region:"Europe"},
+  {id:"SK",name:"Slovakia",        capital:"Bratislava",      flag:"🇸🇰",region:"Europe"},
+  {id:"SI",name:"Slovenia",        capital:"Ljubljana",       flag:"🇸🇮",region:"Europe"},
+  {id:"ES",name:"Spain",           capital:"Madrid",          flag:"🇪🇸",region:"Europe"},
+  {id:"SE",name:"Sweden",          capital:"Stockholm",       flag:"🇸🇪",region:"Europe"},
+  {id:"CH",name:"Switzerland",     capital:"Bern",            flag:"🇨🇭",region:"Europe"},
+  {id:"UA",name:"Ukraine",         capital:"Kyiv",            flag:"🇺🇦",region:"Europe"},
+  {id:"GB",name:"United Kingdom",  capital:"London",          flag:"🇬🇧",region:"Europe"},
+  {id:"VA",name:"Vatican City",    capital:"Vatican City",    flag:"🇻🇦",region:"Europe"},
+
+  // ── NORTH AMERICA (23) ──
+  {id:"AG",name:"Antigua & Barbuda",capital:"Saint John's",  flag:"🇦🇬",region:"North America"},
+  {id:"BS",name:"Bahamas",          capital:"Nassau",         flag:"🇧🇸",region:"North America"},
+  {id:"BB",name:"Barbados",         capital:"Bridgetown",     flag:"🇧🇧",region:"North America"},
+  {id:"BZ",name:"Belize",           capital:"Belmopan",       flag:"🇧🇿",region:"North America"},
+  {id:"CA",name:"Canada",           capital:"Ottawa",         flag:"🇨🇦",region:"North America"},
+  {id:"CR",name:"Costa Rica",       capital:"San José",       flag:"🇨🇷",region:"North America"},
+  {id:"CU",name:"Cuba",             capital:"Havana",         flag:"🇨🇺",region:"North America"},
+  {id:"DM",name:"Dominica",         capital:"Roseau",         flag:"🇩🇲",region:"North America"},
+  {id:"DO",name:"Dominican Rep.",   capital:"Santo Domingo",  flag:"🇩🇴",region:"North America"},
+  {id:"SV",name:"El Salvador",      capital:"San Salvador",   flag:"🇸🇻",region:"North America"},
+  {id:"GD",name:"Grenada",          capital:"Saint George's", flag:"🇬🇩",region:"North America"},
+  {id:"GT",name:"Guatemala",        capital:"Guatemala City", flag:"🇬🇹",region:"North America"},
+  {id:"HT",name:"Haiti",            capital:"Port-au-Prince", flag:"🇭🇹",region:"North America"},
+  {id:"HN",name:"Honduras",         capital:"Tegucigalpa",    flag:"🇭🇳",region:"North America"},
+  {id:"JM",name:"Jamaica",          capital:"Kingston",       flag:"🇯🇲",region:"North America"},
+  {id:"MX",name:"Mexico",           capital:"Mexico City",    flag:"🇲🇽",region:"North America"},
+  {id:"NI",name:"Nicaragua",        capital:"Managua",        flag:"🇳🇮",region:"North America"},
+  {id:"PA",name:"Panama",           capital:"Panama City",    flag:"🇵🇦",region:"North America"},
+  {id:"KN",name:"Saint Kitts & Nevis",capital:"Basseterre",  flag:"🇰🇳",region:"North America"},
+  {id:"LC",name:"Saint Lucia",      capital:"Castries",       flag:"🇱🇨",region:"North America"},
+  {id:"VC",name:"St. Vincent & Gren.",capital:"Kingstown",   flag:"🇻🇨",region:"North America"},
+  {id:"TT",name:"Trinidad & Tobago",capital:"Port of Spain",  flag:"🇹🇹",region:"North America"},
+  {id:"US",name:"United States",    capital:"Washington D.C.",flag:"🇺🇸",region:"North America"},
+
+  // ── SOUTH AMERICA (12) ──
+  {id:"AR",name:"Argentina",  capital:"Buenos Aires",flag:"🇦🇷",region:"South America"},
+  {id:"BO",name:"Bolivia",    capital:"Sucre",       flag:"🇧🇴",region:"South America"},
+  {id:"BR",name:"Brazil",     capital:"Brasília",    flag:"🇧🇷",region:"South America"},
+  {id:"CL",name:"Chile",      capital:"Santiago",    flag:"🇨🇱",region:"South America"},
+  {id:"CO",name:"Colombia",   capital:"Bogotá",      flag:"🇨🇴",region:"South America"},
+  {id:"EC",name:"Ecuador",    capital:"Quito",       flag:"🇪🇨",region:"South America"},
+  {id:"GY",name:"Guyana",     capital:"Georgetown",  flag:"🇬🇾",region:"South America"},
+  {id:"PY",name:"Paraguay",   capital:"Asunción",    flag:"🇵🇾",region:"South America"},
+  {id:"PE",name:"Peru",       capital:"Lima",        flag:"🇵🇪",region:"South America"},
+  {id:"SR",name:"Suriname",   capital:"Paramaribo",  flag:"🇸🇷",region:"South America"},
+  {id:"UY",name:"Uruguay",    capital:"Montevideo",  flag:"🇺🇾",region:"South America"},
+  {id:"VE",name:"Venezuela",  capital:"Caracas",     flag:"🇻🇪",region:"South America"},
+
+  // ── ASIA (49) ──
+  {id:"AF",name:"Afghanistan",    capital:"Kabul",          flag:"🇦🇫",region:"Asia"},
+  {id:"AM",name:"Armenia",        capital:"Yerevan",        flag:"🇦🇲",region:"Asia"},
+  {id:"AZ",name:"Azerbaijan",     capital:"Baku",           flag:"🇦🇿",region:"Asia"},
+  {id:"BH",name:"Bahrain",        capital:"Manama",         flag:"🇧🇭",region:"Asia"},
+  {id:"BD",name:"Bangladesh",     capital:"Dhaka",          flag:"🇧🇩",region:"Asia"},
+  {id:"BT",name:"Bhutan",         capital:"Thimphu",        flag:"🇧🇹",region:"Asia"},
+  {id:"BN",name:"Brunei",         capital:"Bandar Seri Begawan",flag:"🇧🇳",region:"Asia"},
+  {id:"KH",name:"Cambodia",       capital:"Phnom Penh",     flag:"🇰🇭",region:"Asia"},
+  {id:"CN",name:"China",          capital:"Beijing",        flag:"🇨🇳",region:"Asia"},
+  {id:"GE",name:"Georgia",        capital:"Tbilisi",        flag:"🇬🇪",region:"Asia"},
+  {id:"IN",name:"India",          capital:"New Delhi",      flag:"🇮🇳",region:"Asia"},
+  {id:"ID",name:"Indonesia",      capital:"Jakarta",        flag:"🇮🇩",region:"Asia"},
+  {id:"IR",name:"Iran",           capital:"Tehran",         flag:"🇮🇷",region:"Asia"},
+  {id:"IQ",name:"Iraq",           capital:"Baghdad",        flag:"🇮🇶",region:"Asia"},
+  {id:"IL",name:"Israel",         capital:"Jerusalem",      flag:"🇮🇱",region:"Asia"},
+  {id:"JP",name:"Japan",          capital:"Tokyo",          flag:"🇯🇵",region:"Asia"},
+  {id:"JO",name:"Jordan",         capital:"Amman",          flag:"🇯🇴",region:"Asia"},
+  {id:"KZ",name:"Kazakhstan",     capital:"Astana",         flag:"🇰🇿",region:"Asia"},
+  {id:"KW",name:"Kuwait",         capital:"Kuwait City",    flag:"🇰🇼",region:"Asia"},
+  {id:"KG",name:"Kyrgyzstan",     capital:"Bishkek",        flag:"🇰🇬",region:"Asia"},
+  {id:"LA",name:"Laos",           capital:"Vientiane",      flag:"🇱🇦",region:"Asia"},
+  {id:"LB",name:"Lebanon",        capital:"Beirut",         flag:"🇱🇧",region:"Asia"},
+  {id:"MY",name:"Malaysia",       capital:"Kuala Lumpur",   flag:"🇲🇾",region:"Asia"},
+  {id:"MV",name:"Maldives",       capital:"Malé",           flag:"🇲🇻",region:"Asia"},
+  {id:"MN",name:"Mongolia",       capital:"Ulaanbaatar",    flag:"🇲🇳",region:"Asia"},
+  {id:"MM",name:"Myanmar",        capital:"Naypyidaw",      flag:"🇲🇲",region:"Asia"},
+  {id:"NP",name:"Nepal",          capital:"Kathmandu",      flag:"🇳🇵",region:"Asia"},
+  {id:"KP",name:"North Korea",    capital:"Pyongyang",      flag:"🇰🇵",region:"Asia"},
+  {id:"OM",name:"Oman",           capital:"Muscat",         flag:"🇴🇲",region:"Asia"},
+  {id:"PK",name:"Pakistan",       capital:"Islamabad",      flag:"🇵🇰",region:"Asia"},
+  {id:"PS",name:"Palestine",      capital:"Ramallah",       flag:"🇵🇸",region:"Asia"},
+  {id:"PH",name:"Philippines",    capital:"Manila",         flag:"🇵🇭",region:"Asia"},
+  {id:"QA",name:"Qatar",          capital:"Doha",           flag:"🇶🇦",region:"Asia"},
+  {id:"SA",name:"Saudi Arabia",   capital:"Riyadh",         flag:"🇸🇦",region:"Asia"},
+  {id:"SG",name:"Singapore",      capital:"Singapore",      flag:"🇸🇬",region:"Asia"},
+  {id:"KR",name:"South Korea",    capital:"Seoul",          flag:"🇰🇷",region:"Asia"},
+  {id:"LK",name:"Sri Lanka",      capital:"Sri Jayawardenepura Kotte",flag:"🇱🇰",region:"Asia"},
+  {id:"SY",name:"Syria",          capital:"Damascus",       flag:"🇸🇾",region:"Asia"},
+  {id:"TW",name:"Taiwan",         capital:"Taipei",         flag:"🇹🇼",region:"Asia"},
+  {id:"TJ",name:"Tajikistan",     capital:"Dushanbe",       flag:"🇹🇯",region:"Asia"},
+  {id:"TH",name:"Thailand",       capital:"Bangkok",        flag:"🇹🇭",region:"Asia"},
+  {id:"TL",name:"Timor-Leste",    capital:"Dili",           flag:"🇹🇱",region:"Asia"},
+  {id:"TR",name:"Turkey",         capital:"Ankara",         flag:"🇹🇷",region:"Asia"},
+  {id:"TM",name:"Turkmenistan",   capital:"Ashgabat",       flag:"🇹🇲",region:"Asia"},
+  {id:"AE",name:"UAE",            capital:"Abu Dhabi",      flag:"🇦🇪",region:"Asia"},
+  {id:"UZ",name:"Uzbekistan",     capital:"Tashkent",       flag:"🇺🇿",region:"Asia"},
+  {id:"VN",name:"Vietnam",        capital:"Hanoi",          flag:"🇻🇳",region:"Asia"},
+  {id:"YE",name:"Yemen",          capital:"Sanaa",          flag:"🇾🇪",region:"Asia"},
+
+  // ── AFRICA (54) ──
+  {id:"DZ",name:"Algeria",          capital:"Algiers",       flag:"🇩🇿",region:"Africa"},
+  {id:"AO",name:"Angola",           capital:"Luanda",        flag:"🇦🇴",region:"Africa"},
+  {id:"BJ",name:"Benin",            capital:"Porto-Novo",    flag:"🇧🇯",region:"Africa"},
+  {id:"BW",name:"Botswana",         capital:"Gaborone",      flag:"🇧🇼",region:"Africa"},
+  {id:"BF",name:"Burkina Faso",     capital:"Ouagadougou",   flag:"🇧🇫",region:"Africa"},
+  {id:"BI",name:"Burundi",          capital:"Gitega",        flag:"🇧🇮",region:"Africa"},
+  {id:"CV",name:"Cape Verde",       capital:"Praia",         flag:"🇨🇻",region:"Africa"},
+  {id:"CM",name:"Cameroon",         capital:"Yaoundé",       flag:"🇨🇲",region:"Africa"},
+  {id:"CF",name:"Central African Rep.",capital:"Bangui",     flag:"🇨🇫",region:"Africa"},
+  {id:"TD",name:"Chad",             capital:"N'Djamena",     flag:"🇹🇩",region:"Africa"},
+  {id:"KM",name:"Comoros",          capital:"Moroni",        flag:"🇰🇲",region:"Africa"},
+  {id:"CD",name:"DR Congo",         capital:"Kinshasa",      flag:"🇨🇩",region:"Africa"},
+  {id:"CG",name:"Republic of Congo",capital:"Brazzaville",   flag:"🇨🇬",region:"Africa"},
+  {id:"CI",name:"Côte d'Ivoire",    capital:"Yamoussoukro",  flag:"🇨🇮",region:"Africa"},
+  {id:"DJ",name:"Djibouti",         capital:"Djibouti",      flag:"🇩🇯",region:"Africa"},
+  {id:"EG",name:"Egypt",            capital:"Cairo",         flag:"🇪🇬",region:"Africa"},
+  {id:"GQ",name:"Equatorial Guinea",capital:"Malabo",        flag:"🇬🇶",region:"Africa"},
+  {id:"ER",name:"Eritrea",          capital:"Asmara",        flag:"🇪🇷",region:"Africa"},
+  {id:"SZ",name:"Eswatini",         capital:"Mbabane",       flag:"🇸🇿",region:"Africa"},
+  {id:"ET",name:"Ethiopia",         capital:"Addis Ababa",   flag:"🇪🇹",region:"Africa"},
+  {id:"GA",name:"Gabon",            capital:"Libreville",    flag:"🇬🇦",region:"Africa"},
+  {id:"GM",name:"Gambia",           capital:"Banjul",        flag:"🇬🇲",region:"Africa"},
+  {id:"GH",name:"Ghana",            capital:"Accra",         flag:"🇬🇭",region:"Africa"},
+  {id:"GN",name:"Guinea",           capital:"Conakry",       flag:"🇬🇳",region:"Africa"},
+  {id:"GW",name:"Guinea-Bissau",    capital:"Bissau",        flag:"🇬🇼",region:"Africa"},
+  {id:"KE",name:"Kenya",            capital:"Nairobi",       flag:"🇰🇪",region:"Africa"},
+  {id:"LS",name:"Lesotho",          capital:"Maseru",        flag:"🇱🇸",region:"Africa"},
+  {id:"LR",name:"Liberia",          capital:"Monrovia",      flag:"🇱🇷",region:"Africa"},
+  {id:"LY",name:"Libya",            capital:"Tripoli",       flag:"🇱🇾",region:"Africa"},
+  {id:"MG",name:"Madagascar",       capital:"Antananarivo",  flag:"🇲🇬",region:"Africa"},
+  {id:"MW",name:"Malawi",           capital:"Lilongwe",      flag:"🇲🇼",region:"Africa"},
+  {id:"ML",name:"Mali",             capital:"Bamako",        flag:"🇲🇱",region:"Africa"},
+  {id:"MR",name:"Mauritania",       capital:"Nouakchott",    flag:"🇲🇷",region:"Africa"},
+  {id:"MU",name:"Mauritius",        capital:"Port Louis",    flag:"🇲🇺",region:"Africa"},
+  {id:"MA",name:"Morocco",          capital:"Rabat",         flag:"🇲🇦",region:"Africa"},
+  {id:"MZ",name:"Mozambique",       capital:"Maputo",        flag:"🇲🇿",region:"Africa"},
+  {id:"NA",name:"Namibia",          capital:"Windhoek",      flag:"🇳🇦",region:"Africa"},
+  {id:"NE",name:"Niger",            capital:"Niamey",        flag:"🇳🇪",region:"Africa"},
+  {id:"NG",name:"Nigeria",          capital:"Abuja",         flag:"🇳🇬",region:"Africa"},
+  {id:"RW",name:"Rwanda",           capital:"Kigali",        flag:"🇷🇼",region:"Africa"},
+  {id:"ST",name:"São Tomé & Príncipe",capital:"São Tomé",    flag:"🇸🇹",region:"Africa"},
+  {id:"SN",name:"Senegal",          capital:"Dakar",         flag:"🇸🇳",region:"Africa"},
+  {id:"SC",name:"Seychelles",       capital:"Victoria",      flag:"🇸🇨",region:"Africa"},
+  {id:"SL",name:"Sierra Leone",     capital:"Freetown",      flag:"🇸🇱",region:"Africa"},
+  {id:"SO",name:"Somalia",          capital:"Mogadishu",     flag:"🇸🇴",region:"Africa"},
+  {id:"ZA",name:"South Africa",     capital:"Pretoria",      flag:"🇿🇦",region:"Africa"},
+  {id:"SS",name:"South Sudan",      capital:"Juba",          flag:"🇸🇸",region:"Africa"},
+  {id:"SD",name:"Sudan",            capital:"Khartoum",      flag:"🇸🇩",region:"Africa"},
+  {id:"TZ",name:"Tanzania",         capital:"Dodoma",        flag:"🇹🇿",region:"Africa"},
+  {id:"TG",name:"Togo",             capital:"Lomé",          flag:"🇹🇬",region:"Africa"},
+  {id:"TN",name:"Tunisia",          capital:"Tunis",         flag:"🇹🇳",region:"Africa"},
+  {id:"UG",name:"Uganda",           capital:"Kampala",       flag:"🇺🇬",region:"Africa"},
+  {id:"ZM",name:"Zambia",           capital:"Lusaka",        flag:"🇿🇲",region:"Africa"},
+  {id:"ZW",name:"Zimbabwe",         capital:"Harare",        flag:"🇿🇼",region:"Africa"},
+
+  // ── OCEANIA (14) ──
+  {id:"AU",name:"Australia",      capital:"Canberra",      flag:"🇦🇺",region:"Oceania"},
+  {id:"FJ",name:"Fiji",           capital:"Suva",          flag:"🇫🇯",region:"Oceania"},
+  {id:"KI",name:"Kiribati",       capital:"South Tarawa",  flag:"🇰🇮",region:"Oceania"},
+  {id:"MH",name:"Marshall Islands",capital:"Majuro",       flag:"🇲🇭",region:"Oceania"},
+  {id:"FM",name:"Micronesia",     capital:"Palikir",       flag:"🇫🇲",region:"Oceania"},
+  {id:"NR",name:"Nauru",          capital:"Yaren",         flag:"🇳🇷",region:"Oceania"},
+  {id:"NZ",name:"New Zealand",    capital:"Wellington",    flag:"🇳🇿",region:"Oceania"},
+  {id:"PW",name:"Palau",          capital:"Ngerulmud",     flag:"🇵🇼",region:"Oceania"},
+  {id:"PG",name:"Papua New Guinea",capital:"Port Moresby", flag:"🇵🇬",region:"Oceania"},
+  {id:"WS",name:"Samoa",          capital:"Apia",          flag:"🇼🇸",region:"Oceania"},
+  {id:"SB",name:"Solomon Islands",capital:"Honiara",       flag:"🇸🇧",region:"Oceania"},
+  {id:"TO",name:"Tonga",          capital:"Nuku'alofa",    flag:"🇹🇴",region:"Oceania"},
+  {id:"TV",name:"Tuvalu",         capital:"Funafuti",      flag:"🇹🇻",region:"Oceania"},
+  {id:"VU",name:"Vanuatu",        capital:"Port Vila",     flag:"🇻🇺",region:"Oceania"},
+];
+
+// ── Fast lookup maps (built once at startup) ──
+const COUNTRY_MAP = new Map(COUNTRIES.map(c=>[c.id, c]));
+const COUNTRIES_BY_REGION = {};
+COUNTRIES.forEach(c=>{ (COUNTRIES_BY_REGION[c.region]||(COUNTRIES_BY_REGION[c.region]=[])).push(c); });
+
+// Region viewport: [cx, cy, scale]
+const REGION_VIEWS = {
+  "world":         {cx:500, cy:300, scale:1},
+  "Europe":        {cx:520, cy:210, scale:3.4},
+  "North America": {cx:250, cy:230, scale:2.2},
+  "South America": {cx:330, cy:410, scale:2.5},
+  "Asia":          {cx:660, cy:240, scale:2.1},
+  "Africa":        {cx:510, cy:360, scale:2.4},
+  "Oceania":       {cx:820, cy:430, scale:2.8},
+};
+
+// Currency map: ISO alpha-2 → currency name
+const CURRENCY_MAP = {
+  // Europe
+  "AD":"Euro","AL":"Lek","AT":"Euro","BA":"Convertible Mark","BE":"Euro","BG":"Lev",
+  "BY":"Belarusian Ruble","CH":"Swiss Franc","CY":"Euro","CZ":"Czech Koruna","DE":"Euro",
+  "DK":"Danish Krone","EE":"Euro","ES":"Euro","FI":"Euro","FR":"Euro","GB":"Pound Sterling",
+  "GE":"Georgian Lari","GR":"Euro","HR":"Euro","HU":"Forint","IE":"Euro","IS":"Icelandic Króna",
+  "IT":"Euro","XK":"Euro","LI":"Swiss Franc","LT":"Euro","LU":"Euro","LV":"Euro","MC":"Euro",
+  "MD":"Moldovan Leu","ME":"Euro","MK":"Denar","MT":"Euro","NL":"Euro","NO":"Norwegian Krone",
+  "PL":"Złoty","PT":"Euro","RO":"Romanian Leu","RS":"Serbian Dinar","RU":"Russian Ruble",
+  "SE":"Swedish Krona","SI":"Euro","SK":"Euro","SM":"Euro","TR":"Turkish Lira",
+  "UA":"Ukrainian Hryvnia","VA":"Euro",
+  // North America
+  "AG":"East Caribbean Dollar","BS":"Bahamian Dollar","BB":"Barbadian Dollar","BZ":"Belize Dollar",
+  "CA":"Canadian Dollar","CR":"Costa Rican Colón","CU":"Cuban Peso","DM":"East Caribbean Dollar",
+  "DO":"Dominican Peso","SV":"US Dollar","GD":"East Caribbean Dollar","GT":"Guatemalan Quetzal",
+  "HT":"Haitian Gourde","HN":"Honduran Lempira","JM":"Jamaican Dollar","MX":"Mexican Peso",
+  "NI":"Nicaraguan Córdoba","PA":"Panamanian Balboa","KN":"East Caribbean Dollar",
+  "LC":"East Caribbean Dollar","VC":"East Caribbean Dollar","TT":"Trinidad Dollar","US":"US Dollar",
+  // South America
+  "AR":"Argentine Peso","BO":"Boliviano","BR":"Brazilian Real","CL":"Chilean Peso",
+  "CO":"Colombian Peso","EC":"US Dollar","GY":"Guyanese Dollar","PY":"Paraguayan Guaraní",
+  "PE":"Peruvian Sol","SR":"Surinamese Dollar","UY":"Uruguayan Peso","VE":"Venezuelan Bolívar",
+  // Asia
+  "AE":"UAE Dirham","AF":"Afghan Afghani","AM":"Armenian Dram","AZ":"Azerbaijani Manat",
+  "BD":"Bangladeshi Taka","BH":"Bahraini Dinar","BN":"Brunei Dollar","BT":"Bhutanese Ngultrum",
+  "CN":"Chinese Yuan","ID":"Indonesian Rupiah","IL":"Israeli Shekel","IN":"Indian Rupee",
+  "IQ":"Iraqi Dinar","IR":"Iranian Rial","JO":"Jordanian Dinar","JP":"Japanese Yen",
+  "KG":"Kyrgyzstani Som","KH":"Cambodian Riel","KP":"North Korean Won","KR":"South Korean Won",
+  "KW":"Kuwaiti Dinar","KZ":"Kazakhstani Tenge","LA":"Lao Kip","LB":"Lebanese Pound",
+  "LK":"Sri Lankan Rupee","MM":"Myanmar Kyat","MN":"Mongolian Tögrög","MV":"Maldivian Rufiyaa",
+  "MY":"Malaysian Ringgit","NP":"Nepalese Rupee","OM":"Omani Rial","PH":"Philippine Peso",
+  "PK":"Pakistani Rupee","PS":"Israeli Shekel","QA":"Qatari Riyal","SA":"Saudi Riyal",
+  "SG":"Singapore Dollar","SY":"Syrian Pound","TH":"Thai Baht","TJ":"Tajikistani Somoni",
+  "TL":"US Dollar","TM":"Turkmenistani Manat","TW":"New Taiwan Dollar","UZ":"Uzbekistani Som",
+  "VN":"Vietnamese Đồng","YE":"Yemeni Rial",
+  // Africa
+  "AO":"Angolan Kwanza","BF":"CFA Franc","BI":"Burundian Franc","BJ":"CFA Franc",
+  "BW":"Botswana Pula","CD":"Congolese Franc","CF":"CFA Franc","CG":"CFA Franc",
+  "CI":"CFA Franc","CM":"CFA Franc","CV":"Cape Verdean Escudo","DJ":"Djiboutian Franc",
+  "DZ":"Algerian Dinar","EG":"Egyptian Pound","ER":"Eritrean Nakfa","ET":"Ethiopian Birr",
+  "GA":"CFA Franc","GH":"Ghanaian Cedi","GM":"Gambian Dalasi","GN":"Guinean Franc",
+  "GQ":"CFA Franc","GW":"CFA Franc","KE":"Kenyan Shilling","KM":"Comorian Franc",
+  "LR":"Liberian Dollar","LS":"Lesotho Loti","LY":"Libyan Dinar","MA":"Moroccan Dirham",
+  "MG":"Malagasy Ariary","ML":"CFA Franc","MR":"Mauritanian Ouguiya","MU":"Mauritian Rupee",
+  "MW":"Malawian Kwacha","MZ":"Mozambican Metical","NA":"Namibian Dollar","NE":"CFA Franc",
+  "NG":"Nigerian Naira","RW":"Rwandan Franc","SC":"Seychellois Rupee","SD":"Sudanese Pound",
+  "SL":"Sierra Leonean Leone","SN":"CFA Franc","SO":"Somali Shilling","SS":"South Sudanese Pound",
+  "ST":"São Tomé Dobra","SZ":"Swazi Lilangeni","TD":"CFA Franc","TG":"CFA Franc",
+  "TN":"Tunisian Dinar","TZ":"Tanzanian Shilling","UG":"Ugandan Shilling","ZA":"South African Rand",
+  "ZM":"Zambian Kwacha","ZW":"Zimbabwean Dollar",
+  // Oceania
+  "AU":"Australian Dollar","FJ":"Fijian Dollar","FM":"US Dollar","KI":"Australian Dollar",
+  "MH":"US Dollar","NR":"Australian Dollar","NZ":"New Zealand Dollar","PG":"Papua New Guinean Kina",
+  "PW":"US Dollar","SB":"Solomon Islands Dollar","TO":"Tongan Paʻanga","TV":"Australian Dollar",
+  "VU":"Vanuatu Vatu","WS":"Samoan Tālā"
+};
+
+// Small countries rendered as dots — stored as [lng, lat]
+// Positions are computed at runtime via the D3 projection for pixel-perfect accuracy
+const DOT_COUNTRIES_LNGLAT = {
+  // Europe micro-states
+  "AD":[  1.52,  42.50], // Andorra
+  "LI":[  9.55,  47.14], // Liechtenstein
+  "LU":[  6.13,  49.61], // Luxembourg
+  "MC":[  7.41,  43.73], // Monaco
+  "MT":[ 14.37,  35.90], // Malta
+  "SM":[ 12.46,  43.94], // San Marino
+  "VA":[ 12.45,  41.90], // Vatican City
+  "XK":[ 20.90,  42.60], // Kosovo
+  // Caribbean
+  "AG":[-61.80,  17.12], // Antigua & Barbuda
+  "BB":[-59.62,  13.10], // Barbados
+  "DM":[-61.37,  15.41], // Dominica
+  "GD":[-61.68,  12.11], // Grenada
+  "KN":[-62.72,  17.33], // Saint Kitts & Nevis
+  "LC":[-60.98,  13.91], // Saint Lucia
+  "VC":[-61.20,  13.25], // St Vincent & Grenadines
+  "TT":[-61.22,  10.69], // Trinidad & Tobago
+  // Asia small
+  "BH":[ 50.55,  26.02], // Bahrain
+  "LB":[ 35.83,  33.88], // Lebanon
+  "MV":[ 73.22,   3.20], // Maldives
+  "PS":[ 35.25,  31.90], // Palestine
+  "QA":[ 51.20,  25.35], // Qatar
+  "SG":[103.82,   1.35], // Singapore
+  // Africa islands
+  "CV":[-23.60,  16.00], // Cape Verde
+  "KM":[ 43.33, -11.70], // Comoros
+  "MU":[ 57.55, -20.28], // Mauritius
+  "SC":[ 55.45,  -4.62], // Seychelles
+  "ST":[  6.61,   0.33], // São Tomé & Príncipe
+  // Oceania
+  "FJ":[ 178.10, -17.71], // Fiji
+  "KI":[-157.36,   1.87], // Kiribati
+  "MH":[ 171.18,   7.10], // Marshall Islands
+  "FM":[ 158.25,   6.92], // Micronesia
+  "NR":[ 166.93,  -0.53], // Nauru
+  "PW":[ 134.58,   7.51], // Palau
+  "WS":[-172.13, -13.76], // Samoa
+  "SB":[ 159.00,  -8.12], // Solomon Islands
+  "TO":[-175.20, -21.18], // Tonga
+  "TV":[ 179.20,  -8.52], // Tuvalu
+  "VU":[ 168.32, -15.38], // Vanuatu
+};
+// Populated at map load time with projected {x, y}
+const DOT_COUNTRIES = {};
+
+// Complete ISO numeric → alpha-2 mapping
+const NUM_TO_ALPHA = {
+  "008":"AL","020":"AD","040":"AT","112":"BY","056":"BE","070":"BA","100":"BG","191":"HR",
+  "196":"CY","203":"CZ","208":"DK","233":"EE","246":"FI","250":"FR","276":"DE","300":"GR",
+  "348":"HU","352":"IS","372":"IE","380":"IT","428":"LV","438":"LI","440":"LT","442":"LU",
+  "470":"MT","498":"MD","492":"MC","499":"ME","528":"NL","807":"MK","578":"NO","616":"PL",
+  "620":"PT","642":"RO","643":"RU","674":"SM","688":"RS","703":"SK","705":"SI","724":"ES",
+  "752":"SE","756":"CH","804":"UA","826":"GB","336":"VA","383":"XK",
+  // North America
+  "028":"AG","044":"BS","052":"BB","084":"BZ","124":"CA","188":"CR","192":"CU","212":"DM",
+  "214":"DO","222":"SV","308":"GD","320":"GT","332":"HT","340":"HN","388":"JM","484":"MX",
+  "558":"NI","591":"PA","659":"KN","662":"LC","670":"VC","780":"TT","840":"US",
+  // South America
+  "032":"AR","068":"BO","076":"BR","152":"CL","170":"CO","218":"EC","328":"GY","600":"PY",
+  "604":"PE","740":"SR","858":"UY","862":"VE",
+  // Asia
+  "004":"AF","051":"AM","031":"AZ","048":"BH","050":"BD","064":"BT","096":"BN","116":"KH",
+  "156":"CN","268":"GE","356":"IN","360":"ID","364":"IR","368":"IQ","376":"IL","392":"JP",
+  "400":"JO","398":"KZ","414":"KW","417":"KG","418":"LA","422":"LB","458":"MY","462":"MV",
+  "496":"MN","104":"MM","524":"NP","408":"KP","512":"OM","586":"PK","275":"PS","608":"PH",
+  "634":"QA","682":"SA","702":"SG","410":"KR","144":"LK","760":"SY","158":"TW","762":"TJ",
+  "764":"TH","626":"TL","792":"TR","795":"TM","784":"AE","860":"UZ","704":"VN","887":"YE",
+  // Africa
+  "012":"DZ","024":"AO","204":"BJ","072":"BW","854":"BF","108":"BI","132":"CV","120":"CM",
+  "140":"CF","148":"TD","174":"KM","180":"CD","178":"CG","384":"CI","262":"DJ","818":"EG",
+  "226":"GQ","232":"ER","748":"SZ","231":"ET","266":"GA","270":"GM","288":"GH","324":"GN",
+  "624":"GW","404":"KE","426":"LS","430":"LR","434":"LY","450":"MG","454":"MW","466":"ML",
+  "478":"MR","480":"MU","504":"MA","508":"MZ","516":"NA","562":"NE","566":"NG","646":"RW",
+  "678":"ST","686":"SN","690":"SC","694":"SL","706":"SO","710":"ZA","728":"SS","729":"SD",
+  "834":"TZ","768":"TG","788":"TN","800":"UG","894":"ZM","716":"ZW",
+  // Oceania
+  "036":"AU","242":"FJ","296":"KI","584":"MH","583":"FM","520":"NR","554":"NZ","585":"PW",
+  "598":"PG","882":"WS","090":"SB","776":"TO","798":"TV","548":"VU",
+};
+
+// Populate region counts
+(function(){
+  const map={"Europe":"rc-Europe","North America":"rc-NorthAmerica","South America":"rc-SouthAmerica","Asia":"rc-Asia","Africa":"rc-Africa","Oceania":"rc-Oceania"};
+  Object.entries(map).forEach(([r,elId])=>{
+    const el=document.getElementById(elId);
+    if(el) el.textContent=COUNTRIES.filter(c=>c.region===r).length+' countries';
+  });
+  document.getElementById('rc-world').textContent=COUNTRIES.length+' countries';
+})();
+
+// ═══════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════
+const MAX_LIVES=3;
+const CIRCUMFERENCE=2*Math.PI*20;
+
+let selectedRegion='world', gameMode='flags';
+let questions=[], currentQ=0;
+let streak=0, bestStreak=0, correct=0, wrong=0;
+let lives=MAX_LIVES;
+let timerInterval=null, timeLeft=15, answered=false;
+let mapLoaded=false, mapSVGEl=null, mapGEl=null;
+let endReason='completed';
+let zoomLevel=1, panX=0, panY=0;
+let isDragging=false, dragStartX=0, dragStartY=0, dragStartPanX=0, dragStartPanY=0;
+let centroidsMap={};
+let solvedCountries=new Set();
+
+// ═══════════════════════════════════════
+//  NAVIGATION
+// ═══════════════════════════════════════
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  const inGame=id==='game';
+  const pb=document.getElementById('profileBtn');
+  const sb=document.getElementById('settingsBtn');
+  if(pb) pb.style.display=inGame?'none':'flex';
+  if(sb) sb.style.display=inGame?'none':'flex';
+}
+function selectRegion(el){
+  document.querySelectorAll('.region-card').forEach(c=>c.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedRegion=el.dataset.region;
+}
+const SUBMODES={
+  flags:[
+    {mode:'flagquiz', icon:'❓', name:'Flag Quiz',     desc:'See a flag, pick the country from 4 options'},
+    {mode:'flags',    icon:'🗺️', name:'Flag Hunt',     desc:'See a flag, find the country on the map'}
+  ],
+  capitals:[
+    {mode:'capital',      icon:'❓', name:'Capital Quiz', desc:'See a capital, pick the country from 4 options'},
+    {mode:'capitalhunt',  icon:'🗺️', name:'Capital Hunt', desc:'See a capital, find the country on the map'}
+  ]
+};
+function selectCategory(cat){
+  if(cat==='flags'||cat==='capitals'){
+    document.getElementById('subpanelIcon').textContent=cat==='flags'?'🚩':'🏛️';
+    document.getElementById('subpanelTitle').textContent=cat==='flags'?'FLAGS':'CAPITALS';
+    const grid=document.getElementById('submodeGrid');
+    grid.innerHTML='';
+    SUBMODES[cat].forEach(sm=>{
+      const card=document.createElement('div');
+      card.className='mode-card';
+      card.innerHTML=`<div class="m-icon">${sm.icon}</div><div class="m-name">${sm.name}</div><div class="m-desc">${sm.desc}</div>`;
+      card.onclick=()=>{ gameMode=sm.mode; showScreen('region-select'); };
+      grid.appendChild(card);
+    });
+    document.getElementById('categoryPanel').style.display='none';
+    document.getElementById('submodePanel').style.display='flex';
+  } else {
+    gameMode=cat;
+    showScreen('region-select');
+  }
+}
+function showCategoryPanel(){
+  document.getElementById('submodePanel').style.display='none';
+  document.getElementById('categoryPanel').style.display='flex';
+}
+function goBackToChallenge(){
+  showCategoryPanel();
+  showScreen('challenge-select');
+}
+function goHome(){
+  clearInterval(timerInterval); closeQuitModal();
+  showScreen('intro');
+  mapLoaded=false; mapGEl=null; mapSVGEl=null;
+  _dotMarkerCache=null; // reset so it's rebuilt on next map load
+  zoomLevel=1; panX=0; panY=0; centroidsMap={}; solvedCountries=new Set();
+  document.getElementById('regionHeaderBox').style.display='none';
+  document.getElementById('mapContainer').innerHTML='<div class="zoom-hint">🖱 Scroll to zoom · Drag to pan</div><div class="dot-tooltip" id="dotTooltip"></div>';
+}
+function confirmQuit(){ document.getElementById('quitModal').classList.add('show'); }
+function closeQuitModal(){ document.getElementById('quitModal').classList.remove('show'); }
+
+// ═══════════════════════════════════════
+//  GAME SETUP
+// ═══════════════════════════════════════
+function shuffle(arr){
+  const a=[...arr];
+  for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
+  return a;
+}
+
+function buildQuestions(){
+  let pool=selectedRegion==='world'?COUNTRIES:(COUNTRIES_BY_REGION[selectedRegion]||COUNTRIES);
+  pool=shuffle(pool); // randomise order but use all
+  return pool.map(country=>{
+    let type;
+    if(gameMode==='flags') type='flag';
+    else if(gameMode==='flagquiz') type='flagquiz';
+    else if(gameMode==='capital') type='capital';
+    else if(gameMode==='capitalhunt') type='capitalhunt';
+    else if(gameMode==='identify') type='identify';
+    else if(gameMode==='currency') type='currency';
+    else{
+      const types=['flag','flagquiz','capital','capitalhunt','identify','currency'];
+      type=types[Math.floor(Math.random()*types.length)];
+    }
+    return {country,type};
+  });
+}
+
+function startGame(){
+  questions=buildQuestions();
+  currentQ=0; streak=0; bestStreak=0;
+  correct=0; wrong=0; endReason='completed';
+  solvedCountries=new Set();
+  const gs=getSettings();
+  lives=gs.noLives?999:gs.lives;
+  updateLivesDisplay();
+  updateLivesUI();
+
+  // Region header badge
+  const icons={world:'🌐',Europe:'🏰','North America':'🌎','South America':'🌎',Asia:'🌏',Africa:'🌍',Oceania:'🦘'};
+  const rBox=document.getElementById('regionHeaderBox');
+  const rLabel=document.getElementById('regionHeaderLabel');
+  if(selectedRegion!=='world'){
+    rLabel.textContent=(icons[selectedRegion]||'')+' '+selectedRegion;
+    rBox.style.display='flex';
+  } else {
+    rBox.style.display='none';
+  }
+
+  showScreen('game');
+  const mapContainer=document.getElementById('mapContainer');
+  const gameEl=document.getElementById('game');
+  const noMap=gameMode==='flagquiz'||gameMode==='capital'||gameMode==='currency';
+  gameEl.classList.toggle('flagquiz-mode', gameMode==='flagquiz');
+  gameEl.classList.toggle('capitalquiz-mode', gameMode==='capital');
+  gameEl.classList.toggle('currencyquiz-mode', gameMode==='currency');
+  if(noMap){
+    mapContainer.style.display='none';
+    showQuestion();
+  } else {
+    mapContainer.style.display='';
+    loadMap().then(()=>{
+      resetMapColors();
+      focusRegion(selectedRegion);
+      showQuestion();
+    });
+  }
+}
+
+// ═══════════════════════════════════════
+//  LIVES
+// ═══════════════════════════════════════
+function updateLivesDisplay(){
+  const settings=getSettings();
+  const container=document.querySelector('.lives-display');
+  if(!container) return;
+  container.innerHTML='';
+  if(settings.noLives){
+    const inf=document.createElement('span');
+    inf.style.cssText='font-family:\'Bebas Neue\',sans-serif;font-size:0.75rem;color:var(--muted);line-height:1;letter-spacing:1px;text-transform:uppercase';
+    inf.textContent='OFF';
+    container.appendChild(inf);
+    return;
+  }
+  for(let i=0;i<settings.lives;i++){
+    const span=document.createElement('span');
+    span.className='life-heart'; span.id='life'+i; span.textContent='❤️';
+    container.appendChild(span);
+  }
+}
+function updateLivesUI(){
+  const settings=getSettings();
+  if(settings.noLives) return;
+  for(let i=0;i<settings.lives;i++){
+    const el=document.getElementById('life'+i);
+    if(el) el.classList.toggle('lost',i>=lives);
+  }
+}
+function loseLife(){
+  if(getSettings().noLives||lives<=0) return;
+  const idx=lives-1; lives--;
+  const el=document.getElementById('life'+idx);
+  if(!el) return;
+  el.classList.add('lose-anim');
+  setTimeout(()=>{ el.classList.remove('lose-anim'); el.classList.add('lost'); },350);
+}
+
+// ═══════════════════════════════════════
+//  MAP
+// ═══════════════════════════════════════
+async function loadMap(){
+  if(mapLoaded) return;
+  const container=document.getElementById('mapContainer');
+  const zoomHint=container.querySelector('.zoom-hint');
+  try{
+    const res=await fetch("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json");
+    const world=await res.json();
+
+    if(!window.topojson){
+      const s=document.createElement('script');
+      s.src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js";
+      document.head.appendChild(s); await new Promise(r=>s.onload=r);
+    }
+    if(!window.d3){
+      const s=document.createElement('script');
+      s.src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js";
+      document.head.appendChild(s); await new Promise(r=>s.onload=r);
+    }
+
+    const features=topojson.feature(world,world.objects.countries);
+    const proj=d3.geoNaturalEarth1().scale(153).translate([500,300]);
+    const pathGen=d3.geoPath().projection(proj);
+
+    container.innerHTML='';
+    container.appendChild(zoomHint);
+
+    const svgEl=d3.select(container).append("svg")
+      .attr("viewBox","0 0 1000 600").attr("width","100%").attr("height","100%").style("display","block");
+    svgEl.insert("rect",":first-child").attr("width","100%").attr("height","100%").attr("fill","#0d1929");
+
+    const g=svgEl.append("g").attr("class","map-g");
+    mapGEl=g; zoomLevel=1; panX=0; panY=0;
+
+    g.selectAll("path")
+      .data(features.features)
+      .enter().append("path")
+      .attr("d",pathGen)
+      .attr("class","country-path")
+      .attr("data-id",d=>NUM_TO_ALPHA[String(d.id).padStart(3,'0')]||'')
+      .style("fill",d=>getCountryBaseFill(NUM_TO_ALPHA[String(d.id).padStart(3,'0')]||''))
+      .style("stroke",d=>getCountryBaseStroke(NUM_TO_ALPHA[String(d.id).padStart(3,'0')]||''))
+      .style("stroke-width","0.5").style("cursor","pointer")
+      .on("mouseover",function(){
+        const f=this.style.fill;
+        const lit=f.includes('0, 212')||f.includes('255, 71')||f.includes('255, 170');
+        if(!lit) d3.select(this).style("fill","#2a4060");
+      })
+      .on("mouseout",function(){
+        const id=this.getAttribute('data-id');
+        if(solvedCountries.has(id)) d3.select(this).style("fill","#00a882");
+        else{
+          const f=this.style.fill;
+          const lit=f.includes('0, 212')||f.includes('255, 71')||f.includes('255, 170');
+          if(!lit) d3.select(this).style("fill",getCountryBaseFill(id));
         }
+      })
+      .on("click",function(event,d){
+        if(isDragging) return;
+        const alpha=NUM_TO_ALPHA[String(d.id).padStart(3,'0')];
+        if(alpha) handleMapClick(alpha,event);
+      });
 
-        function detectClick(countryName) {
-            // Logic to check if the country clicked is valid
-            score += 1; // Increment score for correct guess
-            document.getElementById('score').innerText = score;
-            if (score >= 196) {
-                clearInterval(timer);
-                triggerConfetti();
-                alert('You won!');
-            }
+    // Cache centroids
+    features.features.forEach(d=>{
+      const alpha=NUM_TO_ALPHA[String(d.id).padStart(3,'0')];
+      if(alpha){ try{ const c=pathGen.centroid(d); if(c&&!isNaN(c[0])) centroidsMap[alpha]=c; }catch(e){} }
+    });
+
+    // Render dot markers for small countries — pass proj so positions are exact
+    renderDots(g, proj);
+
+    // SCROLL ZOOM
+    const svgNode=svgEl.node();
+    svgNode.addEventListener('wheel',function(e){
+      e.preventDefault();
+      const rect=svgNode.getBoundingClientRect();
+      const mx=((e.clientX-rect.left)/rect.width)*1000;
+      const my=((e.clientY-rect.top)/rect.height)*600;
+    const factor=e.deltaY<0?1.08:1/1.08;
+      const newZoom=Math.min(Math.max(zoomLevel*factor,1),10);
+      panX=mx-(mx-panX)*(newZoom/zoomLevel);
+      panY=my-(my-panY)*(newZoom/zoomLevel);
+      zoomLevel=newZoom; clampPan(); applyTransform();
+    },{passive:false});
+
+    // DRAG PAN
+    svgNode.addEventListener('mousedown',function(e){
+      if(e.button!==0) return;
+      isDragging=false; dragStartX=e.clientX; dragStartY=e.clientY;
+      dragStartPanX=panX; dragStartPanY=panY;
+      const onMove=ev=>{
+        const dx=ev.clientX-dragStartX,dy=ev.clientY-dragStartY;
+        if(Math.abs(dx)>4||Math.abs(dy)>4) isDragging=true;
+        if(!isDragging) return;
+        const rect=svgNode.getBoundingClientRect();
+        panX=dragStartPanX+dx*(1000/rect.width);
+        panY=dragStartPanY+dy*(600/rect.height);
+        clampPan(); applyTransform();
+      };
+      const onUp=()=>{ setTimeout(()=>{ isDragging=false; },20); window.removeEventListener('mousemove',onMove); window.removeEventListener('mouseup',onUp); };
+      window.addEventListener('mousemove',onMove);
+      window.addEventListener('mouseup',onUp);
+    });
+
+    // Delegated click handler for dot markers
+    svgNode.addEventListener('click', function(e){
+      if(isDragging) return;
+      const marker=e.target.closest('.dot-marker');
+      if(!marker) return;
+      const id=marker.getAttribute('data-id');
+      if(id) handleMapClick(id,e);
+    });
+
+    mapSVGEl=container; mapLoaded=true;
+  }catch(e){
+    container.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#6b7a99;">🗺️ Map failed to load</div>';
+  }
+}
+
+function focusRegion(region){
+  if(!mapGEl) return;
+  const v=REGION_VIEWS[region]||REGION_VIEWS['world'];
+  zoomLevel=v.scale;
+  panX=500-v.cx*v.scale;
+  panY=300-v.cy*v.scale;
+  clampPan(); applyTransform();
+}
+
+function clampPan(){
+  panX=Math.min(0,Math.max(panX,1000*(1-zoomLevel)));
+  panY=Math.min(0,Math.max(panY,600*(1-zoomLevel)));
+}
+let _dotMarkerCache=null, _transformRAF=null;
+function applyTransform(){
+  if(_transformRAF) return; // already scheduled this frame
+  _transformRAF=requestAnimationFrame(()=>{
+    _transformRAF=null;
+    if(!mapGEl) return;
+    mapGEl.attr("transform",`translate(${panX},${panY}) scale(${zoomLevel})`);
+    // Build cache once after map loads; reuse every frame
+    if(!_dotMarkerCache) _dotMarkerCache=Array.from(document.querySelectorAll('.dot-marker'));
+    const s=1/zoomLevel;
+    _dotMarkerCache.forEach(node=>{
+      const pos=DOT_COUNTRIES[node.getAttribute('data-id')];
+      if(pos) node.setAttribute('transform',`translate(${pos.x},${pos.y}) scale(${s})`);
+    });
+  });
+}
+
+function renderDots(g, proj){
+  const tooltip=document.getElementById('dotTooltip');
+  const container=document.getElementById('mapContainer');
+
+  Object.entries(DOT_COUNTRIES_LNGLAT).forEach(([id, lnglat])=>{
+    const country=COUNTRY_MAP.get(id);
+    if(!country) return;
+
+    // Project lat/lng to SVG coordinates using the actual D3 projection
+    const projected=proj(lnglat);
+    if(!projected || isNaN(projected[0]) || isNaN(projected[1])) return;
+    const [px, py]=projected;
+
+    // Store for confetti positioning
+    DOT_COUNTRIES[id]={x:px, y:py};
+    centroidsMap[id]=[px, py];
+
+    const dotG=g.append("g")
+      .attr("class","dot-marker")
+      .attr("data-id",id)
+      .attr("transform",`translate(${px},${py})`);
+
+    // Outer ring
+    dotG.append("circle")
+      .attr("class","dot-ring")
+      .attr("r",5)
+      .style("fill","none")
+      .style("stroke", getDotBaseColor(id))
+      .style("stroke-width","1")
+      .style("opacity","0.45")
+      .style("pointer-events","none");
+
+    // Main dot
+    dotG.append("circle")
+      .attr("class","dot-bg")
+      .attr("r",4)
+      .style("fill", getDotBaseColor(id))
+      .style("stroke","#0a0e1a")
+      .style("stroke-width","1")
+      .style("cursor","pointer");
+
+    // Invisible hit area — makes the dot much easier to click
+    dotG.append("circle")
+      .attr("class","dot-hit")
+      .attr("r",7)
+      .style("fill","none")
+      .style("pointer-events","all")
+      .style("cursor","pointer");
+
+    dotG
+      .on("mouseover", function(event){
+        if(isDragging) return;
+        d3.select(this).select('.dot-bg').attr("r",5);
+        // Position tooltip above the dot in screen space
+        const svgEl=container.querySelector('svg');
+        const svgRect=svgEl.getBoundingClientRect();
+        const containerRect=container.getBoundingClientRect();
+        const screenX=svgRect.left + (px*zoomLevel+panX)/1000*svgRect.width;
+        const screenY=svgRect.top  + (py*zoomLevel+panY)/600 *svgRect.height;
+        tooltip.textContent=country.name;
+        tooltip.style.left=(screenX-containerRect.left)+'px';
+        tooltip.style.top =(screenY-containerRect.top -4)+'px';
+        tooltip.classList.add('show');
+      })
+      .on("mouseout", function(){
+        d3.select(this).select('.dot-bg').attr("r",4);
+        tooltip.classList.remove('show');
+      });
+  });
+}
+
+function getDotBaseColor(id){
+  if(solvedCountries.has(id)) return '#00a882';
+  if(selectedRegion==='world') return '#5baddf';
+  const country=COUNTRY_MAP.get(id);
+  if(!country) return '#3a5070';
+  return country.region===selectedRegion ? '#5baddf' : '#3a5070';
+}
+function getCountryBaseFill(id){
+  if(!id) return '#131c2e';
+  if(selectedRegion==='world') return '#1e2d45';
+  const country=COUNTRY_MAP.get(id);
+  if(!country) return '#131c2e';
+  return country.region===selectedRegion?'#1e4060':'#131c2e';
+}
+function getCountryBaseStroke(id){
+  if(!id) return '#1a2840';
+  if(selectedRegion==='world') return '#2a3d5a';
+  const country=COUNTRY_MAP.get(id);
+  if(!country) return '#1a2840';
+  return country.region===selectedRegion?'#2d5580':'#1a2840';
+}
+
+function resetMapColors(){
+  if(!mapSVGEl) return;
+  mapSVGEl.querySelectorAll('.country-path').forEach(p=>{
+    const id=p.getAttribute('data-id');
+    p.style.filter=''; p.classList.remove('wrong-pulse');
+    if(solvedCountries.has(id)){
+      p.style.fill='#00a882'; p.style.stroke='#00d4aa'; p.style.strokeWidth='1';
+    } else {
+      p.style.fill=getCountryBaseFill(id);
+      p.style.stroke=getCountryBaseStroke(id);
+      p.style.strokeWidth='0.5';
+    }
+  });
+  // Reset dots
+  if(mapGEl){
+    mapGEl.selectAll('.dot-marker').each(function(){
+      const id=d3.select(this).attr('data-id');
+      const color=getDotBaseColor(id);
+      d3.select(this).select('.dot-bg').style('fill',color).attr('r',4);
+      d3.select(this).select('.dot-ring').style('stroke',color).style('opacity','0.4');
+      d3.select(this).style('filter','');
+    });
+  }
+}
+
+function highlightCountry(id,type){
+  if(!mapSVGEl) return;
+  // Handle regular country paths
+  mapSVGEl.querySelectorAll(`[data-id="${id}"].country-path`).forEach(p=>{
+    if(type==='correct'){
+      p.style.fill='#00d4aa'; p.style.stroke='#00ffcc'; p.style.strokeWidth='2.5';
+      p.classList.remove('wrong-pulse');
+      p.style.filter='drop-shadow(0 0 10px #00ffcc) drop-shadow(0 0 22px #00d4aa)';
+      setTimeout(()=>{ p.style.filter='drop-shadow(0 0 5px #00d4aa)'; },600);
+      setTimeout(()=>{ p.style.filter='drop-shadow(0 0 3px #00a882)'; p.style.fill='#00a882'; p.style.stroke='#00d4aa'; p.style.strokeWidth='1'; },1600);
+    } else if(type==='wrong'){
+      p.style.fill='#ff4757'; p.style.stroke='#ff6b7a'; p.style.strokeWidth='2.5';
+      p.classList.remove('wrong-pulse'); void p.offsetWidth;
+      p.classList.add('wrong-pulse');
+    } else if(type==='answer'){
+      p.style.fill='#ffcc00'; p.style.stroke='#ffee00'; p.style.strokeWidth='2.5';
+      p.classList.remove('answer-glow'); void p.offsetWidth;
+      p.classList.add('answer-glow');
+      setTimeout(()=>{ p.classList.remove('answer-glow'); p.style.filter=''; },2000);
+    }
+  });
+  // Handle dot markers
+  if(mapGEl){
+    mapGEl.selectAll(`.dot-marker[data-id="${id}"]`).each(function(){
+      const dot=d3.select(this);
+      if(type==='correct'){
+        dot.select('.dot-bg').style('fill','#00d4aa').attr('r',8);
+        dot.select('.dot-ring').style('stroke','#00ffcc').style('opacity','0.8');
+        dot.style('filter','drop-shadow(0 0 6px #00ffcc)');
+        setTimeout(()=>{
+          dot.style('filter','drop-shadow(0 0 3px #00a882)');
+          dot.select('.dot-bg').style('fill','#00a882').attr('r',5);
+          dot.select('.dot-ring').style('stroke','#00d4aa').style('opacity','0.5');
+        },1600);
+      } else if(type==='wrong'){
+        dot.select('.dot-bg').style('fill','#ff4757').attr('r',8);
+        dot.select('.dot-ring').style('stroke','#ff6b7a').style('opacity','0.8');
+        dot.style('filter','drop-shadow(0 0 8px #ff4757)');
+      } else if(type==='answer'){
+        dot.select('.dot-bg').style('fill','#ffcc00').attr('r',9);
+        dot.select('.dot-ring').style('stroke','#ffee00').style('opacity','1');
+        const dotNode=this;
+        dot.classed('answer-glow',false); void dotNode.offsetWidth;
+        dot.classed('answer-glow',true);
+        setTimeout(()=>{ dot.classed('answer-glow',false).style('filter',''); },2000);
+      }
+    });
+  }
+}
+
+// ═══════════════════════════════════════
+//  CONFETTI
+// ═══════════════════════════════════════
+const confettiCanvas=document.getElementById('confetti-canvas');
+const ctx=confettiCanvas.getContext('2d');
+let confettiParticles=[], confettiRAF=null;
+function resizeCC(){ confettiCanvas.width=window.innerWidth; confettiCanvas.height=window.innerHeight; }
+resizeCC(); window.addEventListener('resize',resizeCC);
+
+function launchConfetti(countryId,mouseEvent){
+  if(getSettings().reduceMotion) return;
+  resizeCC();
+  let ox=confettiCanvas.width/2, oy=confettiCanvas.height/2;
+  if(mouseEvent){ ox=mouseEvent.clientX; oy=mouseEvent.clientY; }
+  else if(centroidsMap[countryId]){
+    const container=document.getElementById('mapContainer');
+    const rect=container.getBoundingClientRect();
+    const [cx,cy]=centroidsMap[countryId];
+    ox=rect.left+((cx*zoomLevel+panX)/1000)*rect.width;
+    oy=rect.top+((cy*zoomLevel+panY)/600)*rect.height;
+  }
+  const style=getProfile().celebration||'cel-classic';
+  ({
+    'cel-classic':   celClassic,
+    'cel-fireworks': celFireworks,
+    'cel-stars':     celStars,
+    'cel-lightning': celLightning,
+    'cel-aurora':    celAurora,
+    'cel-cosmic':    celCosmic,
+    'cel-inferno':   celInferno,
+    'cel-prismatic': celPrismatic,
+  }[style]||celClassic)(ox,oy);
+  if(!confettiRAF) animateConfetti();
+}
+
+// ── Particle renderer ──────────────────
+function animateConfetti(){
+  ctx.clearRect(0,0,confettiCanvas.width,confettiCanvas.height);
+  confettiParticles=confettiParticles.filter(p=>p.life>0);
+  confettiParticles.forEach(p=>{
+    p.x+=p.vx; p.y+=p.vy;
+    p.vy+=(p.gravity??0.22); p.vx*=(p.drag??0.98);
+    p.rot=(p.rot||0)+(p.rotSpeed||0);
+    p.life-=(p.decay??0.013);
+    ctx.save();
+    ctx.globalAlpha=Math.max(0,p.life)*(p.alpha||1);
+    if(p.glow){ ctx.shadowBlur=p.glow*p.life; ctx.shadowColor=p.color; }
+    ctx.translate(p.x,p.y); ctx.rotate(p.rot*Math.PI/180);
+    ctx.fillStyle=p.color;
+    if(p.shape==='circle'){
+      ctx.beginPath(); ctx.arc(0,0,p.size/2,0,Math.PI*2); ctx.fill();
+    } else if(p.shape==='star'){
+      const r1=p.size/2, r2=p.size/4;
+      ctx.beginPath();
+      for(let i=0;i<10;i++){
+        const r=i%2===0?r1:r2, a=(i*Math.PI/5)-(Math.PI/2);
+        i===0?ctx.moveTo(r*Math.cos(a),r*Math.sin(a)):ctx.lineTo(r*Math.cos(a),r*Math.sin(a));
+      }
+      ctx.closePath(); ctx.fill();
+    } else if(p.shape==='spark'){
+      ctx.fillRect(-p.size*0.12,-p.size*0.5,p.size*0.24,p.size);
+    } else {
+      ctx.fillRect(-p.size/2,-p.size/4,p.size,p.size/2);
+    }
+    ctx.restore();
+  });
+  if(confettiParticles.length>0) confettiRAF=requestAnimationFrame(animateConfetti);
+  else{ confettiRAF=null; ctx.clearRect(0,0,confettiCanvas.width,confettiCanvas.height); }
+}
+
+// ── Celebration generators ─────────────
+function celClassic(ox,oy){
+  const c=['#00d4aa','#00ffcc','#ffd700','#0096ff','#ff6b35','#fff','#a78bfa'];
+  for(let i=0;i<90;i++){
+    const a=Math.random()*Math.PI*2, s=3+Math.random()*9;
+    confettiParticles.push({x:ox,y:oy,vx:Math.cos(a)*s,vy:Math.sin(a)*s-2,
+      color:c[~~(Math.random()*c.length)],size:3+Math.random()*6,
+      rot:Math.random()*360,rotSpeed:(Math.random()-0.5)*9,
+      life:1,decay:0.013+Math.random()*0.013,shape:Math.random()<0.5?'rect':'circle'});
+  }
+}
+function celFireworks(ox,oy){
+  const pals=[['#ff4757','#fff','#ffd700'],['#00d4aa','#0096ff','#fff'],['#a78bfa','#ff6b35','#ffd700']];
+  [[ox,oy],[ox+(Math.random()-0.5)*120,oy-55],[ox+(Math.random()-0.5)*80,oy-100]].forEach(([bx,by],bi)=>{
+    const pal=pals[bi%pals.length];
+    for(let i=0;i<50;i++){
+      const a=(i/50)*Math.PI*2, s=4+Math.random()*9;
+      confettiParticles.push({x:bx,y:by,vx:Math.cos(a)*s,vy:Math.sin(a)*s,
+        color:pal[i%pal.length],size:2+Math.random()*4,
+        rot:a*180/Math.PI,rotSpeed:0,shape:'spark',glow:14,
+        life:0.8+Math.random()*0.2,decay:0.018+Math.random()*0.014,gravity:0.07,drag:0.96});
+    }
+  });
+}
+function celStars(ox,oy){
+  for(let i=0;i<55;i++){
+    const a=Math.random()*Math.PI*2, s=3+Math.random()*8;
+    confettiParticles.push({x:ox,y:oy,vx:Math.cos(a)*s,vy:Math.sin(a)*s-2,
+      color:Math.random()>0.3?'#ffd700':'#fffbe0',size:10+Math.random()*12,
+      rot:Math.random()*360,rotSpeed:(Math.random()-0.5)*6,
+      shape:'star',glow:16,life:1,decay:0.007+Math.random()*0.007,gravity:0.1,drag:0.98});
+  }
+}
+function celLightning(ox,oy){
+  const c=['#00d4aa','#ffffff','#00bbff','#a0f4ff','#e8f8ff'];
+  for(let i=0;i<150;i++){
+    const a=Math.random()*Math.PI*2, s=8+Math.random()*18;
+    confettiParticles.push({x:ox,y:oy,vx:Math.cos(a)*s,vy:Math.sin(a)*s,
+      color:c[~~(Math.random()*c.length)],size:2+Math.random()*4,
+      rot:a*180/Math.PI,rotSpeed:0,shape:'spark',glow:18,
+      life:0.7+Math.random()*0.25,decay:0.025+Math.random()*0.02,gravity:0.04,drag:0.92});
+  }
+}
+function celAurora(ox,oy){
+  const c=['#00d4aa','#0096ff','#a78bfa','#00ffcc','#7c3aed'];
+  const W=confettiCanvas.width, H=confettiCanvas.height;
+  for(let i=0;i<70;i++){
+    confettiParticles.push({x:Math.random()*W,y:H+20,
+      vx:(Math.random()-0.5)*1.5,vy:-(2+Math.random()*4),
+      color:c[~~(Math.random()*c.length)],size:28+Math.random()*34,
+      rot:0,rotSpeed:0,shape:'circle',glow:24,alpha:0.15+Math.random()*0.14,
+      life:0.8+Math.random()*0.2,decay:0.004+Math.random()*0.003,gravity:-0.02,drag:0.995});
+  }
+}
+function celCosmic(ox,oy){
+  const c=['#a78bfa','#00d4aa','#0096ff','#ff77ff','#ffffff'];
+  for(let i=0;i<120;i++){
+    const t=i/120, angle=t*Math.PI*6;
+    const jitter=(Math.random()-0.5)*35;
+    const sx=ox+Math.cos(angle)*jitter, sy=oy+Math.sin(angle)*jitter;
+    const tanA=angle+Math.PI/2, speed=1.5+t*6+Math.random()*2.5;
+    confettiParticles.push({x:sx,y:sy,
+      vx:Math.cos(tanA)*speed,vy:Math.sin(tanA)*speed,
+      color:c[~~(Math.random()*c.length)],size:2+Math.random()*4,
+      rot:0,rotSpeed:0,shape:'circle',glow:9,
+      life:1,decay:0.006+Math.random()*0.005,gravity:0,drag:0.99});
+  }
+}
+function celInferno(ox,oy){
+  const c=['#ff4500','#ff6b35','#ffd700','#ff2200','#ff9900'];
+  for(let i=0;i<110;i++){
+    const spread=(Math.random()-0.5)*70;
+    confettiParticles.push({x:ox+spread,y:oy,
+      vx:(Math.random()-0.5)*3.5,vy:-(4+Math.random()*11),
+      color:c[~~(Math.random()*c.length)],size:3+Math.random()*9,
+      rot:Math.random()*360,rotSpeed:(Math.random()-0.5)*14,
+      shape:Math.random()>0.4?'circle':'spark',glow:20,
+      life:1,decay:0.011+Math.random()*0.012,gravity:-0.09,drag:0.97});
+  }
+}
+function celPrismatic(ox,oy){
+  for(let i=0;i<170;i++){
+    const hue=~~((i/170)*360), a=Math.random()*Math.PI*2, s=4+Math.random()*13;
+    confettiParticles.push({x:ox,y:oy,vx:Math.cos(a)*s,vy:Math.sin(a)*s-2,
+      color:`hsl(${hue},100%,65%)`,size:4+Math.random()*9,
+      rot:Math.random()*360,rotSpeed:(Math.random()-0.5)*10,
+      shape:Math.random()<0.35?'star':Math.random()<0.5?'rect':'circle',
+      glow:11,life:1,decay:0.008+Math.random()*0.008,gravity:0.12,drag:0.985});
+  }
+}
+
+// ═══════════════════════════════════════
+//  QUESTIONS
+// ═══════════════════════════════════════
+function showQuestion(){
+  if(lives<=0){ endReason='lives'; endGame(); return; }
+  if(currentQ>=questions.length){ endReason='completed'; endGame(); return; }
+
+  answered=false;
+  resetMapColors();
+
+  const {country,type}=questions[currentQ];
+  const total=questions.length;
+  document.getElementById('progressBar').style.width=(currentQ/total*100)+'%';
+  document.getElementById('qNumDisplay').textContent=`${currentQ+1}/${total}`;
+  document.getElementById('streakDisplay').textContent=streak+(streak>=3?'🔥':'');
+
+  const badge=document.getElementById('qBadge');
+  const optionsGrid=document.getElementById('optionsGrid');
+
+  if(type==='identify'){
+    document.getElementById('qFlag').textContent='🗺️';
+    document.getElementById('qText').textContent=`Find ${country.name} on the map`;
+    badge.textContent='MAP CHALLENGE';
+    optionsGrid.style.display='none';
+  } else if(type==='flag'){
+    document.getElementById('qFlag').textContent=country.flag;
+    document.getElementById('qText').textContent=`Which country does this flag belong to?`;
+    badge.textContent='FLAG → MAP';
+    optionsGrid.style.display='none';
+  } else if(type==='flagquiz'){
+    document.getElementById('fqEmoji').textContent=country.flag;
+    badge.textContent='FLAG QUIZ';
+    const sameReg=(COUNTRIES_BY_REGION[country.region]||[]).filter(c=>c.id!==country.id);
+    let pool=sameReg.length>=3?sameReg:COUNTRIES.filter(c=>c.id!==country.id);
+    let others=shuffle(pool).slice(0,3);
+    const choices=shuffle([country,...others]);
+    const fqGrid=document.getElementById('fqOptionsGrid');
+    fqGrid.innerHTML='';
+    choices.forEach(c=>{
+      const btn=document.createElement('button');
+      btn.className='option-btn'; btn.textContent=c.name;
+      btn.onclick=()=>handleOptionClick(btn,c.id===country.id,country.id);
+      fqGrid.appendChild(btn);
+    });
+  } else if(type==='capital'){
+    // Capital Quiz: show capital name → pick country from 4 options (no map)
+    document.getElementById('cqCapitalName').textContent=country.capital;
+    badge.textContent='CAPITAL QUIZ';
+    const sameReg=(COUNTRIES_BY_REGION[country.region]||[]).filter(c=>c.id!==country.id);
+    let pool=sameReg.length>=3?sameReg:COUNTRIES.filter(c=>c.id!==country.id);
+    let others=shuffle(pool).slice(0,3);
+    const choices=shuffle([country,...others]);
+    const cqGrid=document.getElementById('cqOptionsGrid');
+    cqGrid.innerHTML='';
+    choices.forEach(c=>{
+      const btn=document.createElement('button');
+      btn.className='option-btn'; btn.textContent=c.name;
+      btn.onclick=()=>handleOptionClick(btn,c.id===country.id,country.id);
+      cqGrid.appendChild(btn);
+    });
+  } else if(type==='capitalhunt'){
+    // Capital Hunt: show capital name → find country on map
+    document.getElementById('qFlag').textContent='🏛️';
+    document.getElementById('qText').textContent=`Find the country whose capital is ${country.capital}`;
+    badge.textContent='CAPITAL HUNT';
+    optionsGrid.style.display='none';
+  } else if(type==='currency'){
+    // Currency Quiz: show country flag + name → pick correct currency from 4 options
+    const correctCurrency=CURRENCY_MAP[country.id]||'Unknown';
+    document.getElementById('cqFlagIcon').textContent=country.flag;
+    document.getElementById('cqCurrencyName').textContent=country.name;
+    badge.textContent='CURRENCY QUIZ';
+    // Build 3 unique distractor currencies (try same region first, then global)
+    const seen=new Set([correctCurrency]);
+    const distractors=[];
+    for(const c of shuffle([...(COUNTRIES_BY_REGION[country.region]||[])])){
+      if(distractors.length>=3) break;
+      const cur=CURRENCY_MAP[c.id];
+      if(cur&&!seen.has(cur)){ seen.add(cur); distractors.push(cur); }
+    }
+    if(distractors.length<3){
+      for(const c of shuffle([...COUNTRIES])){
+        if(distractors.length>=3) break;
+        const cur=CURRENCY_MAP[c.id];
+        if(cur&&!seen.has(cur)){ seen.add(cur); distractors.push(cur); }
+      }
+    }
+    const choices=shuffle([correctCurrency,...distractors]);
+    const crqGrid=document.getElementById('crqOptionsGrid');
+    crqGrid.innerHTML='';
+    choices.forEach(currency=>{
+      const btn=document.createElement('button');
+      btn.className='option-btn'; btn.textContent=currency;
+      btn.onclick=()=>handleOptionClick(btn,currency===correctCurrency,country.id);
+      crqGrid.appendChild(btn);
+    });
+  }
+
+  document.getElementById('mapContainer').dataset.expectId=country.id;
+  startTimer();
+}
+
+function handleMapClick(clickedId,event){
+  if(answered) return;
+  if(solvedCountries.has(clickedId)) return;
+  if(selectedRegion!=='world'){
+    const c=COUNTRY_MAP.get(clickedId);
+    if(!c||c.region!==selectedRegion) return;
+  }
+  const expected=document.getElementById('mapContainer').dataset.expectId;
+  answered=true; clearInterval(timerInterval);
+
+  if(clickedId===expected){
+    solvedCountries.add(clickedId);
+    addToPassport(clickedId);
+    handleCorrect(); highlightCountry(clickedId,'correct'); launchConfetti(clickedId,event);
+  } else {
+    highlightCountry(clickedId,'wrong');
+    highlightCountry(expected,'answer');
+    handleWrong();
+    showToast('❌ It was '+(COUNTRY_MAP.get(expected)?.name||expected),'wrong');
+  }
+  setTimeout(next,getSettings().autoAdvance?400:1900);
+}
+
+function handleOptionClick(btn,isCorrect,correctId){
+  if(answered) return;
+  answered=true; clearInterval(timerInterval);
+  document.querySelectorAll('.option-btn').forEach(b=>b.disabled=true);
+  if(isCorrect){
+    btn.classList.add('correct');
+    solvedCountries.add(correctId);
+    handleCorrect(); launchConfetti(correctId,null);
+    highlightCountry(correctId,'correct');
+  } else {
+    btn.classList.add('wrong');
+    const country=COUNTRY_MAP.get(correctId);
+    const curType=questions[currentQ].type;
+    const correctLabel=(curType==='flagquiz'||curType==='capital')?country.name
+      :(curType==='currency')?(CURRENCY_MAP[country.id]||'Unknown')
+      :country.capital;
+    document.querySelectorAll('.option-btn').forEach(b=>{ if(b.textContent===correctLabel) b.classList.add('correct'); });
+    handleWrong();
+    showToast('❌ It was '+correctLabel,'wrong');
+    highlightCountry(correctId,'answer');
+  }
+  setTimeout(next,getSettings().autoAdvance?400:1900);
+}
+
+function next(){
+  if(!getSettings().noLives&&lives<=0){ endReason='lives'; endGame(); return; }
+  currentQ++; showQuestion();
+}
+
+function handleCorrect(){
+  correct++; streak++;
+  if(streak>bestStreak) bestStreak=streak;
+  showToast(`✓ Correct!${streak>=3?' 🔥x'+streak:''}`, 'correct');
+  document.getElementById('streakDisplay').textContent=streak+(streak>=3?'🔥':'');
+  checkStreakMilestone(streak);
+}
+const STREAK_MILESTONES={
+  5: {emoji:'🔥', label:'5 STREAK',  sub:'ON FIRE!'},
+  10:{emoji:'⚡', label:'10 STREAK', sub:'UNSTOPPABLE!'},
+  15:{emoji:'👑', label:'15 STREAK', sub:'LEGENDARY!'},
+  20:{emoji:'🌍', label:'20 STREAK', sub:'GEOMASTER!'}
+};
+function checkStreakMilestone(s){
+  const m=STREAK_MILESTONES[s];
+  if(!m||getSettings().reduceMotion) return;
+  const banner=document.getElementById('streakBanner');
+  document.getElementById('streakBannerEmoji').textContent=m.emoji;
+  document.getElementById('streakBannerLabel').textContent=m.label;
+  document.getElementById('streakBannerSub').textContent=m.sub;
+  banner.classList.remove('show'); void banner.offsetWidth;
+  banner.classList.add('show');
+  setTimeout(()=>banner.classList.remove('show'), 1700);
+  launchConfetti(null, null);
+}
+
+function handleWrong(){
+  wrong++; streak=0; loseLife();
+  document.getElementById('streakDisplay').textContent='0';
+  if(!getSettings().reduceMotion){
+    document.getElementById('game').classList.add('flash-wrong');
+    setTimeout(()=>document.getElementById('game').classList.remove('flash-wrong'),500);
+  }
+}
+
+// ═══════════════════════════════════════
+//  TIMER
+// ═══════════════════════════════════════
+function startTimer(){
+  const dur=getSettings().timerDuration;
+  timeLeft=dur; clearInterval(timerInterval); updateTimerUI();
+  timerInterval=setInterval(()=>{
+    timeLeft--; updateTimerUI();
+    if(timeLeft<=0){
+      clearInterval(timerInterval);
+      if(!answered){
+        answered=true; handleWrong();
+        const expected=document.getElementById('mapContainer').dataset.expectId;
+        highlightCountry(expected,'answer');
+        showToast('⏰ Time! It was '+(COUNTRY_MAP.get(expected)?.name||expected),'wrong');
+        setTimeout(next,getSettings().autoAdvance?400:1900);
+      }
+    }
+  },1000);
+}
+function updateTimerUI(){
+  const dur=getSettings().timerDuration;
+  const ring=document.getElementById('timerRing');
+  const text=document.getElementById('timerText');
+  ring.style.strokeDashoffset=CIRCUMFERENCE*(1-timeLeft/dur);
+  text.textContent=timeLeft;
+  if(timeLeft<=5){ ring.style.stroke='#ff4757'; text.style.color='#ff4757'; }
+  else if(timeLeft<=8){ ring.style.stroke='#ffd700'; text.style.color='#ffd700'; }
+  else{ ring.style.stroke='#00d4aa'; text.style.color='#e8edf5'; }
+}
+
+// ═══════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════
+function showToast(msg,type){
+  const t=document.getElementById('feedbackToast');
+  t.textContent=msg; t.className='feedback-toast '+type+' show';
+  setTimeout(()=>t.classList.remove('show'),1700);
+}
+
+// ═══════════════════════════════════════
+//  PROGRESS / STATS
+// ═══════════════════════════════════════
+const MODE_META={
+  flagquiz:    {icon:'❓', name:'Flag Quiz'},
+  flags:       {icon:'🗺️', name:'Flag Hunt'},
+  capital:     {icon:'❓', name:'Capital Quiz'},
+  capitalhunt: {icon:'🗺️', name:'Capital Hunt'},
+  identify:    {icon:'🗺️', name:'Map Challenge'},
+  currency:    {icon:'💰', name:'Currency Quiz'},
+  mixed:       {icon:'🎯', name:'Mixed'}
+};
+// ── localStorage caches (invalidated on write) ──
+let _statsCache=null, _passportCache=null;
+function loadStats(){
+  if(_statsCache) return _statsCache;
+  try{ _statsCache=JSON.parse(localStorage.getItem('ferdography_stats'))||{}; }
+  catch(e){ _statsCache={}; }
+  return _statsCache;
+}
+function saveStats(stats){ _statsCache=stats; localStorage.setItem('ferdography_stats',JSON.stringify(stats)); }
+function loadPassport(){
+  if(_passportCache) return _passportCache;
+  try{ _passportCache=JSON.parse(localStorage.getItem('ferdography_passport'))||[]; }
+  catch(e){ _passportCache=[]; }
+  return _passportCache;
+}
+function savePassport(a){ _passportCache=a; localStorage.setItem('ferdography_passport',JSON.stringify(a)); }
+function addToPassport(id){ const p=loadPassport(); if(!p.includes(id)){p.push(id);savePassport(p);} }
+function updateStats(mode, accuracy, region, correctCount=0){
+  const stats=loadStats();
+  // Mode-level: game count always increments; bestAcc only from world games
+  if(!stats[mode]) stats[mode]={bestAcc:0, games:0};
+  stats[mode].games++;
+  if(region==='world' && accuracy>stats[mode].bestAcc) stats[mode].bestAcc=accuracy;
+  // Mode+region level — track bestCorrect for completion %
+  const rkey=mode+'__'+region;
+  if(!stats[rkey]) stats[rkey]={bestAcc:0, games:0, bestCorrect:0};
+  stats[rkey].games++;
+  if(accuracy>stats[rkey].bestAcc){
+    stats[rkey].bestAcc=accuracy;
+    stats[rkey].bestCorrect=correctCount;
+  }
+  saveStats(stats);
+}
+function getOverallMastery(stats){
+  // Average completion % across all mode×region combos (excluding mixed)
+  const modes=Object.keys(MODE_META).filter(m=>m!=='mixed');
+  const regions=Object.keys(REGION_LABELS);
+  let sum=0, count=0;
+  modes.forEach(mode=>{
+    regions.forEach(region=>{
+      const rTotal=region==='world'?COUNTRIES.length:(COUNTRIES_BY_REGION[region]?.length||0);
+      const best=(stats[mode+'__'+region]?.bestCorrect)||0;
+      sum+=rTotal>0?(best/rTotal*100):0;
+      count++;
+    });
+  });
+  return count>0?Math.round(sum/count):0;
+}
+function updateIntroMastery(){
+  const stats=loadStats();
+  const pct=getOverallMastery(stats);
+  document.getElementById('introMasteryPct').textContent=pct+'%';
+  document.getElementById('introMasteryFill').style.width=pct+'%';
+}
+function showStats(){
+  const stats=loadStats();
+  const overall=getOverallMastery(stats);
+  const circumference=2*Math.PI*46;
+  const offset=circumference*(1-overall/100);
+  document.getElementById('masteryRingFill').style.strokeDashoffset=offset;
+  document.getElementById('masteryRingPct').textContent=overall+'%';
+  const mastered=Object.keys(MODE_META).filter(m=>(stats[m]?.bestAcc||0)>=80).length;
+  document.getElementById('masteredCount').textContent=`${mastered} of ${Object.keys(MODE_META).length} modes mastered`;
+  const grid=document.getElementById('modeStatsGrid');
+  grid.innerHTML='';
+  Object.entries(MODE_META).forEach(([mode,meta])=>{
+    const s=stats[mode]||{bestAcc:0,games:0};
+    const isMastered=s.bestAcc>=80;
+    const card=document.createElement('div');
+    card.className='mode-stat-card'+(isMastered?' mastered':'');
+    card.dataset.mode=mode;
+    // Region dropdown (skip mixed)
+    let regionHtml='';
+    if(mode!=='mixed'){
+      const playedRegions=Object.keys(REGION_LABELS).filter(r=>(stats[mode+'__'+r]?.bestCorrect||0)>0);
+      if(playedRegions.length){
+        regionHtml=`<button class="mode-stat-toggle" data-mode="${mode}">▾ Regions</button><div class="mode-stat-dropdown" id="msd-${mode}">`;
+        playedRegions.forEach(r=>{
+          const rTotal=r==='world'?COUNTRIES.length:(COUNTRIES_BY_REGION[r]?.length||0);
+          const best=stats[mode+'__'+r].bestCorrect||0;
+          const pct=rTotal>0?Math.round(best/rTotal*100):0;
+          regionHtml+=`<div class="mode-stat-region-row">
+            <span class="mode-stat-region-label">${REGION_LABELS[r]}</span>
+            <div class="mode-stat-region-bar"><div class="mode-stat-region-bar-fill" style="width:${pct}%"></div></div>
+            <span class="mode-stat-region-pct">${pct}%</span>
+            <span class="mode-stat-region-frac">${best}/${rTotal}</span>
+          </div>`;
+        });
+        regionHtml+=`</div>`;
+      }
+    }
+    card.innerHTML=`
+      <div class="mode-stat-top">
+        <div class="mode-stat-icon">${meta.icon}</div>
+        <div class="mode-stat-name">${meta.name}</div>
+        ${isMastered?'<div class="mode-stat-badge">✓ Mastered</div>':''}
+      </div>
+      <div class="mode-stat-bar-track"><div class="mode-stat-bar-fill${s.games===0?' unplayed':''}" style="width:${s.bestAcc}%"></div></div>
+      <div class="mode-stat-nums"><span>Best: ${s.bestAcc}%</span><span>${s.games} game${s.games!==1?'s':''}</span></div>
+      ${regionHtml}`;
+    grid.appendChild(card);
+  });
+  // Toggle region dropdowns
+  grid.addEventListener('click',e=>{
+    const toggle=e.target.closest('.mode-stat-toggle');
+    if(!toggle) return;
+    const dropdown=document.getElementById('msd-'+toggle.dataset.mode);
+    if(!dropdown) return;
+    const open=dropdown.classList.toggle('open');
+    toggle.textContent=open?'▴ Regions':'▾ Regions';
+  });
+  showScreen('stats');
+}
+
+// ═══════════════════════════════════════
+//  END GAME
+// ═══════════════════════════════════════
+function endGame(){
+  clearInterval(timerInterval);
+  const total=correct+wrong;
+  const accuracy=total>0?Math.round(correct/total*100):0;
+  updateStats(gameMode, accuracy, selectedRegion, correct);
+  updateIntroMastery();
+  checkMilestones({bestStreak, correct, wrong});
+  document.getElementById('resCorrect').textContent=correct;
+  document.getElementById('resWrong').textContent=wrong;
+  document.getElementById('resStreak').textContent=bestStreak;
+  if(endReason==='lives'){
+    document.getElementById('resultsIcon').textContent='💔';
+    document.getElementById('resultsEndReason').textContent=`Game over — ran out of lives on Q${currentQ+1} of ${questions.length}`;
+    document.getElementById('resultsGrade').textContent=accuracy>=60?'💪 Good effort — try again!':'🌍 Keep practicing!';
+  } else {
+    document.getElementById('resultsIcon').textContent=accuracy>=80?'🏆':'🌍';
+    document.getElementById('resultsEndReason').textContent=`Completed all ${questions.length} countries!`;
+    document.getElementById('resultsGrade').textContent=
+      accuracy>=90?"🌟 Outstanding! You're a GeoMaster!":
+      accuracy>=75?"🎯 Great work! Geography pro!":
+      accuracy>=55?"📚 Not bad — keep exploring!":
+      "🌍 Keep learning — the world is big!";
+  }
+  showScreen('results');
+}
+
+// ═══════════════════════════════════════
+//  PROFILE / WARDROBE SYSTEM
+// ═══════════════════════════════════════
+const AVATARS=[
+  {id:'explorer',  emoji:'🧑',   name:'Explorer',   req:null},
+  {id:'wizard',    emoji:'🧙',   name:'Wizard',     req:'Complete 1 game'},
+  {id:'hero',      emoji:'🦸',   name:'Hero',       req:'Complete 50 games'},
+  {id:'astronaut', emoji:'🧑‍🚀', name:'Astronaut',  req:'Master 3 modes'},
+  {id:'elf',       emoji:'🧝',   name:'Elf',        req:'Complete 25 games'},
+  {id:'detective', emoji:'🕵️',  name:'Detective',  req:'Master all 7 modes'},
+];
+const BADGES=[
+  {id:'none',      emoji:'',    name:'None',       req:null},
+  {id:'fire',      emoji:'🔥',  name:'On Fire',    req:'10 streak'},
+  {id:'lightning', emoji:'⚡',  name:'Electric',   req:'15 streak'},
+  {id:'crown',     emoji:'👑',  name:'Crown',      req:'Master 5 modes'},
+  {id:'star',      emoji:'🌟',  name:'Star',       req:'100% accuracy'},
+  {id:'globe',     emoji:'🌍',  name:'Geomaster',  req:'Master all 7 modes'},
+];
+const BACKGROUNDS=[
+  {id:'default', name:'Deep Space', style:'linear-gradient(135deg,#0a0e1a,#1a2235,#0d1929)',             req:null},
+  {id:'ocean',   name:'Abyss',      style:'linear-gradient(135deg,#020c1b,#023e8a,#0077b6)',             req:'5 games'},
+  {id:'lava',    name:'Magma',      style:'linear-gradient(135deg,#3d0000,#7b2d00,#c1121f,#e63946)',     req:'80%+ accuracy'},
+  {id:'galaxy',  name:'Aurora',     style:'linear-gradient(135deg,#0d4f3c,#1a7a5e,#2d9b7b,#0d4f3c,#052e16)', req:'Master 3 modes'},
+  {id:'forest',  name:'Cosmos',     style:'linear-gradient(135deg,#050518,#1a1040,#2d1b69,#050518,#0d0a1a)', req:'25 games'},
+  {id:'sunset',  name:'Prism',      style:'linear-gradient(135deg,#ff006e,#8338ec,#3a86ff,#06d6a0,#ff006e)', req:'Master all 7 modes'},
+];
+const THEMES=[
+  {id:'teal',     name:'Deep Ocean', bg:'#0a0e1a',surface:'#111827',surface2:'#1a2235',accent:'#00d4aa',req:null},
+  {id:'purple',   name:'Nebula',     bg:'#0d0a1a',surface:'#1a1127',surface2:'#251838',accent:'#9b5de5',req:'10 games'},
+  {id:'crimson',  name:'Crimson',    bg:'#1a0a10',surface:'#27111a',surface2:'#3a1a28',accent:'#e91e8c',req:'15 streak'},
+  {id:'gold',     name:'Gold Rush',  bg:'#0f0e00',surface:'#1c1a00',surface2:'#2a2700',accent:'#ffd700',req:'Master 5 modes'},
+  {id:'sapphire', name:'Sapphire',   bg:'#020b18',surface:'#071628',surface2:'#0d2138',accent:'#0096ff',req:'50 games'},
+  {id:'jungle',   name:'Jungle',     bg:'#0a1a0a',surface:'#0f2710',surface2:'#173a18',accent:'#40916c',req:'Master all 7 modes'},
+];
+const BORDERS=[
+  {id:'classic',   name:'Classic',    req:null,             cssClass:''},
+  {id:'aura',      name:'Aura',       req:'10 passport',    cssClass:'border-aura'},
+  {id:'gold',      name:'Gold',       req:'Perfect game',   cssClass:'border-gold'},
+  {id:'cosmic',    name:'Cosmic',     req:'50 passport',    cssClass:'border-cosmic'},
+  {id:'neon',      name:'Neon',       req:'15 streak',      cssClass:'border-neon'},
+  {id:'prismatic', name:'Prismatic',  req:'All 195 countries', cssClass:'border-prismatic'},
+];
+const CELEBRATIONS=[
+  {id:'cel-classic',   name:'Confetti',   emoji:'🎊', req:null},
+  {id:'cel-fireworks', name:'Fireworks',  emoji:'🎆', req:'10 games'},
+  {id:'cel-stars',     name:'Gold Stars', emoji:'⭐', req:'20 games'},
+  {id:'cel-lightning', name:'Lightning',  emoji:'⚡', req:'10 streak'},
+  {id:'cel-aurora',    name:'Aurora',     emoji:'🌌', req:'50 games'},
+  {id:'cel-cosmic',    name:'Cosmic',     emoji:'🌀', req:'Master 3 modes'},
+  {id:'cel-inferno',   name:'Inferno',    emoji:'🔥', req:'Master 5 modes'},
+  {id:'cel-prismatic', name:'Prismatic',  emoji:'🌈', req:'All 195 countries'},
+];
+const SKINS=[
+  {id:'skin-default',   name:'Standard',   emoji:'🖥️',  req:null},
+  {id:'skin-neon',      name:'Neon City',  emoji:'💡',  req:'30 games'},
+  {id:'skin-cyber',     name:'Cyberpunk',  emoji:'🦾',  req:'Master 5 modes'},
+  {id:'skin-holo',      name:'Hologram',   emoji:'💎',  req:'Master all 7 modes'},
+  {id:'skin-terminal',  name:'Terminal',   emoji:'💻',  req:'75 games'},
+];
+const MILESTONES=[
+  {id:'first_game', check:(s,ss,pp)=>getTotalGames(s)>=1,                                          unlocks:[{type:'avatar',id:'wizard'}]},
+  {id:'acc_80',     check:(s,ss,pp)=>Object.values(s).some(m=>m.bestAcc>=80),                      unlocks:[{type:'background',id:'lava'}]},
+  {id:'games_5',    check:(s,ss,pp)=>getTotalGames(s)>=5,                                          unlocks:[{type:'background',id:'ocean'}]},
+  {id:'streak_10',  check:(s,ss,pp)=>ss.bestStreak>=10,                                            unlocks:[{type:'badge',id:'fire'}]},
+  {id:'games_10',   check:(s,ss,pp)=>getTotalGames(s)>=10,                                         unlocks:[{type:'theme',id:'purple'}]},
+  {id:'streak_15',  check:(s,ss,pp)=>ss.bestStreak>=15,                                            unlocks:[{type:'badge',id:'lightning'},{type:'theme',id:'crimson'}]},
+  {id:'master_3',   check:(s,ss,pp)=>getMasteredCount(s)>=3,                                       unlocks:[{type:'avatar',id:'astronaut'},{type:'background',id:'galaxy'}]},
+  {id:'acc_100',    check:(s,ss,pp)=>Object.values(s).some(m=>m.bestAcc>=100),                     unlocks:[{type:'badge',id:'star'}]},
+  {id:'games_25',   check:(s,ss,pp)=>getTotalGames(s)>=25,                                         unlocks:[{type:'avatar',id:'elf'},{type:'background',id:'forest'}]},
+  {id:'master_5',   check:(s,ss,pp)=>getMasteredCount(s)>=5,                                       unlocks:[{type:'badge',id:'crown'},{type:'theme',id:'gold'}]},
+  {id:'games_50',   check:(s,ss,pp)=>getTotalGames(s)>=50,                                         unlocks:[{type:'avatar',id:'hero'},{type:'theme',id:'sapphire'}]},
+  {id:'master_all', check:(s,ss,pp)=>getMasteredCount(s)>=7,                                       unlocks:[{type:'avatar',id:'detective'},{type:'background',id:'sunset'},{type:'badge',id:'globe'},{type:'theme',id:'jungle'}]},
+  {id:'passport_10',  check:(s,ss,pp)=>pp.length>=10,                                              unlocks:[{type:'border',id:'aura'}]},
+  {id:'perfect_game', check:(s,ss,pp)=>ss.wrong===0&&ss.correct>=5,                                unlocks:[{type:'border',id:'gold'}]},
+  {id:'passport_50',  check:(s,ss,pp)=>pp.length>=50,                                              unlocks:[{type:'border',id:'cosmic'}]},
+  {id:'passport_all', check:(s,ss,pp)=>pp.length>=195,                                             unlocks:[{type:'border',id:'prismatic'},{type:'badge',id:'globe'}]},
+  // ── Celebration unlocks ──
+  {id:'cel_fw',   check:(s)=>getTotalGames(s)>=10,         unlocks:[{type:'celebration',id:'cel-fireworks'}]},
+  {id:'cel_st',   check:(s)=>getTotalGames(s)>=20,         unlocks:[{type:'celebration',id:'cel-stars'}]},
+  {id:'cel_ln',   check:(s,ss)=>ss.bestStreak>=10,         unlocks:[{type:'celebration',id:'cel-lightning'}]},
+  {id:'cel_au',   check:(s)=>getTotalGames(s)>=50,         unlocks:[{type:'celebration',id:'cel-aurora'}]},
+  {id:'cel_co',   check:(s)=>getMasteredCount(s)>=3,       unlocks:[{type:'celebration',id:'cel-cosmic'}]},
+  {id:'cel_inf',  check:(s)=>getMasteredCount(s)>=5,       unlocks:[{type:'celebration',id:'cel-inferno'}]},
+  {id:'cel_pr',   check:(s,ss,pp)=>pp.length>=195,         unlocks:[{type:'celebration',id:'cel-prismatic'}]},
+  // ── Skin unlocks ──
+  {id:'skin_neon',  check:(s)=>getTotalGames(s)>=30,       unlocks:[{type:'skin',id:'skin-neon'}]},
+  {id:'skin_cyber', check:(s)=>getMasteredCount(s)>=5,     unlocks:[{type:'skin',id:'skin-cyber'}]},
+  {id:'skin_holo',  check:(s)=>getMasteredCount(s)>=7,     unlocks:[{type:'skin',id:'skin-holo'}]},
+  {id:'skin_term',  check:(s)=>getTotalGames(s)>=75,       unlocks:[{type:'skin',id:'skin-terminal'}]},
+];
+
+function getTotalGames(stats){ return Object.values(stats).filter((_,i)=>!Object.keys(stats)[i].includes('__')).reduce((s,m)=>s+(m.games||0),0); }
+function getMasteredCount(stats){ return Object.keys(MODE_META).filter(m=>(stats[m]?.bestAcc||0)>=80).length; }
+
+let _profileCache=null;
+function loadProfile(){
+  if(_profileCache) return _profileCache;
+  try{ _profileCache=JSON.parse(localStorage.getItem('ferdography_profile'))||{}; }catch(e){ _profileCache={}; }
+  return _profileCache;
+}
+function getProfile(){
+  const p=loadProfile();
+  return {
+    name:p.name||'Explorer', avatar:p.avatar||'explorer',
+    badges:p.badges||['none'],
+    background:p.background||'default', theme:p.theme||'teal', border:p.border||'classic',
+    celebration:p.celebration||'cel-classic',
+    skin:p.skin||'skin-default',
+    unlocked:p.unlocked||['explorer','none','classic','default','teal','cel-classic','skin-default'],
+    earnedMilestones:p.earnedMilestones||[]
+  };
+}
+function saveProfile(p){ _profileCache=p; localStorage.setItem('ferdography_profile',JSON.stringify(p)); }
+
+function applyTheme(themeId){
+  const t=THEMES.find(t=>t.id===themeId)||THEMES[0];
+  const r=document.documentElement.style;
+  r.setProperty('--bg',t.bg); r.setProperty('--surface',t.surface);
+  r.setProperty('--surface2',t.surface2); r.setProperty('--accent',t.accent);
+  r.setProperty('--correct',t.accent);
+}
+
+function openProfile(){
+  renderProfilePanel();
+  document.getElementById('profileOverlay').classList.add('show');
+  document.getElementById('profilePanel').classList.add('open');
+}
+function closeProfile(){
+  document.getElementById('profileOverlay').classList.remove('show');
+  document.getElementById('profilePanel').classList.remove('open');
+}
+
+function getBadgeEmoji(badgeId){
+  if(!badgeId||badgeId==='none') return '';
+  if(badgeId.startsWith('country:')){
+    const c=COUNTRY_MAP.get(badgeId.slice(8));
+    return c?c.flag:'';
+  }
+  const ba=BADGES.find(b=>b.id===badgeId);
+  return ba?ba.emoji:'';
+}
+function updateProfileBtn(){
+  const p=getProfile();
+  const av=AVATARS.find(a=>a.id===p.avatar)||AVATARS[0];
+  const bg=BACKGROUNDS.find(b=>b.id===p.background)||BACKGROUNDS[0];
+  const border=BORDERS.find(b=>b.id===p.border)||BORDERS[0];
+  const btn=document.getElementById('profileBtn');
+  btn.style.backgroundImage=bg.style;
+  btn.setAttribute('data-bg',bg.id);
+  btn.className='profile-btn';
+  if(border.cssClass) btn.classList.add(border.cssClass);
+  document.getElementById('profileBtnAvatar').textContent=av.emoji;
+  const badgesEl=document.getElementById('profileBtnBadges');
+  badgesEl.innerHTML='';
+  (p.badges||['none']).forEach(bid=>{
+    const emoji=getBadgeEmoji(bid);
+    if(emoji){ const s=document.createElement('span'); s.textContent=emoji; badgesEl.appendChild(s); }
+  });
+}
+
+function renderProfilePanel(){
+  const p=getProfile(); const stats=loadStats();
+  const av=AVATARS.find(a=>a.id===p.avatar)||AVATARS[0];
+  const bg=BACKGROUNDS.find(b=>b.id===p.background)||BACKGROUNDS[0];
+  const card=document.getElementById('profileCardDisplay');
+  card.style.backgroundImage=bg.style;
+  card.setAttribute('data-bg',bg.id);
+  document.getElementById('profileCardAvatar').textContent=av.emoji;
+  // Badges row (up to 3)
+  const badgesRow=document.getElementById('profileCardBadge');
+  badgesRow.innerHTML='';
+  (p.badges||['none']).filter(b=>b!=='none').forEach(bid=>{
+    const emoji=getBadgeEmoji(bid);
+    if(emoji){ const s=document.createElement('span'); s.textContent=emoji; badgesRow.appendChild(s); }
+  });
+  document.getElementById('profileCardName').textContent=p.name;
+  document.getElementById('profileCardMeta').textContent=
+    `${getTotalGames(stats)} games · ${getOverallMastery(stats)}% mastery`;
+  updateProfileBtn();
+  renderWardrobeAll(p);
+  renderPassportSection(p);
+}
+
+function renderWardrobeAll(p){
+  renderWardrobeSection('wAvatars', AVATARS, p, 'avatar',
+    i=>`<div class="wardrobe-item-preview">${i.emoji}</div><div class="wardrobe-item-name">${i.name}</div>`);
+  renderWardrobeBadges(p);
+  renderWardrobeSection('wBackgrounds', BACKGROUNDS, p, 'background',
+    i=>`<div class="wardrobe-item-swatch" style="background:${i.style}"></div><div class="wardrobe-item-name">${i.name}</div>`);
+  renderWardrobeSection('wThemes', THEMES, p, 'theme',
+    i=>`<div class="wardrobe-item-swatch" style="background:${i.accent};border-radius:50%"></div><div class="wardrobe-item-name">${i.name}</div>`);
+  renderWardrobeSection('wBorders', BORDERS, p, 'border',
+    i=>`<div class="wardrobe-border-swatch ${i.cssClass}"></div><div class="wardrobe-item-name">${i.name}</div>`);
+  renderWardrobeSection('wCelebrations', CELEBRATIONS, p, 'celebration',
+    i=>`<div class="wardrobe-item-preview">${i.emoji}</div><div class="wardrobe-item-name">${i.name}</div>`);
+  renderWardrobeSection('wSkins', SKINS, p, 'skin',
+    i=>`<div class="wardrobe-skin-preview wsp-${i.id.replace('skin-','')}"></div><div class="wardrobe-item-name">${i.name}</div>`);
+}
+function applySkin(id){
+  document.body.setAttribute('data-skin', id.replace('skin-',''));
+  const r=document.documentElement.style;
+  const ov=document.getElementById('skinOverlay');
+  if(id==='skin-cyber'){
+    r.setProperty('--accent','#ffe600'); r.setProperty('--correct','#ffe600');
+    if(ov) ov.style.opacity='1';
+  } else if(id==='skin-terminal'){
+    // Override the 5 vars that applyTheme() would normally set via inline styles
+    r.setProperty('--accent','#00ff41'); r.setProperty('--correct','#00ff41');
+    r.setProperty('--bg','#000300'); r.setProperty('--surface','#040c04'); r.setProperty('--surface2','#081208');
+    // --text, --muted, --border, --wrong are set via CSS on [data-skin="terminal"]
+    // skinOverlay opacity/style is handled by CSS [data-skin="terminal"] #skinOverlay rule
+  } else {
+    applyTheme(getProfile().theme);
+    if(ov) ov.style.opacity='0';
+  }
+}
+function renderWardrobeBadges(p){
+  const grid=document.getElementById('wBadges');
+  grid.innerHTML='';
+  // Remove any existing hint
+  const existingHint=grid.parentElement.querySelector('.wardrobe-badge-hint');
+  if(existingHint) existingHint.remove();
+  const hint=document.createElement('div');
+  hint.className='wardrobe-badge-hint';
+  const equipped=(p.badges||['none']).filter(b=>b!=='none');
+  const countryBadgeCount=equipped.filter(b=>b.startsWith('country:')).length;
+  hint.textContent=`${equipped.length}/3 equipped${countryBadgeCount>0?` · ${countryBadgeCount} country flag${countryBadgeCount>1?'s':''}`:''} — equip country flags from Passport ↓`;
+  grid.parentElement.insertBefore(hint,grid);
+  BADGES.forEach(item=>{
+    const unlocked=p.unlocked.includes(item.id);
+    const isEquipped=(p.badges||['none']).includes(item.id)&&item.id!=='none';
+    const div=document.createElement('div');
+    div.className='wardrobe-item'+(isEquipped?' equipped':'')+(unlocked?'':' locked');
+    div.innerHTML=`<div class="wardrobe-item-preview">${item.emoji||'○'}</div><div class="wardrobe-item-name">${item.name}</div>`
+      +(isEquipped?'<div class="wardrobe-equipped-dot"></div>':'')
+      +(unlocked?'':(`<div class="wardrobe-item-lock">🔒</div><div class="wardrobe-lock-req">${item.req||''}</div>`));
+    if(unlocked&&item.id!=='none'){
+      div.onclick=()=>{
+        const p2=getProfile();
+        let badges=p2.badges||['none'];
+        badges=badges.filter(b=>b!=='none');
+        if(badges.includes(item.id)){
+          badges=badges.filter(b=>b!==item.id);
+        } else if(badges.length<3){
+          badges.push(item.id);
         }
+        p2.badges=badges.length>0?badges:['none'];
+        saveProfile(p2);
+        renderProfilePanel();
+      };
+    }
+    grid.appendChild(div);
+  });
+}
+function renderPassportSection(p){
+  // Remove existing passport section if present
+  const existing=document.getElementById('passportSection');
+  if(existing) existing.remove();
+  const panel=document.getElementById('profilePanel');
+  const section=document.createElement('div');
+  section.id='passportSection';
+  section.className='passport-section';
+  const passport=loadPassport();
+  const passportSet=new Set(passport);
+  const total=COUNTRIES.length;
+  const pct=Math.round(passport.length/total*100);
+  const regions=[
+    {key:'Europe',       label:'🏰 Europe'},
+    {key:'North America',label:'🌎 N. America'},
+    {key:'South America',label:'🌎 S. America'},
+    {key:'Asia',         label:'🌏 Asia'},
+    {key:'Africa',       label:'🌍 Africa'},
+    {key:'Oceania',      label:'🦘 Oceania'},
+  ];
+  let html=`
+    <div class="passport-header-row">
+      <span class="passport-title">✈️ PASSPORT</span>
+      <span class="passport-count-pill">${passport.length}/${total} discovered</span>
+    </div>
+    <div class="passport-bar-track"><div class="passport-bar-fill" style="width:${pct}%"></div></div>`;
+  regions.forEach(r=>{
+    const regionCountries=COUNTRIES_BY_REGION[r.key]||[];
+    const discovered=regionCountries.filter(c=>passportSet.has(c.id)).length;
+    const rpct=Math.round(discovered/regionCountries.length*100);
+    html+=`<div class="passport-region-row">
+      <div class="passport-region-label">${r.label}</div>
+      <div class="passport-region-bar"><div class="passport-region-bar-fill" style="width:${rpct}%"></div></div>
+      <div class="passport-region-count">${discovered}/${regionCountries.length}</div>
+    </div>`;
+  });
+  if(passport.length===0){
 
-        function updateTimer() {
-            timeLeft -= 1;
-            document.getElementById('time').innerText = timeLeft;
+    html+=`<div class="passport-empty">No countries discovered yet.<br>Play Flag Hunt, Capital Hunt,<br>or Map Challenge to stamp your passport!</div>`;
+  } else {
+    const equippedBadges=p.badges||['none'];
+    const equippedCount=equippedBadges.filter(b=>b!=='none').length;
+    html+=`<div class="passport-flag-section-label">Click to equip as badge · Click again to unequip</div><div class="passport-flag-grid" id="passportFlagGrid">`;
+    const order=['Europe','North America','South America','Asia','Africa','Oceania'];
+    const sorted=COUNTRIES.filter(c=>passportSet.has(c.id)).sort((a,b)=>order.indexOf(a.region)-order.indexOf(b.region));
+    sorted.forEach(c=>{
+      const isBadged=equippedBadges.includes('country:'+c.id);
+      const cls='passport-flag'+(isBadged?' badged':'');
+      html+=`<div class="passport-flag-wrap" data-name="${c.name}">
+        <span class="${cls}" data-cid="${c.id}">${c.flag}</span>
+      </div>`;
+    });
+    html+=`</div>`;
+  }
+  section.innerHTML=html;
+  panel.appendChild(section);
+  // Click = equip/unequip badge
+  section.querySelectorAll('.passport-flag').forEach(el=>{
+    el.addEventListener('click',()=>{
+      const p2=getProfile(); const cid=el.getAttribute('data-cid');
+      const bid='country:'+cid;
+      let badges=(p2.badges||['none']).filter(b=>b!=='none');
+      if(badges.includes(bid)){
+        badges=badges.filter(b=>b!==bid);
+      } else if(badges.length<3){
+        badges.push(bid);
+      } else {
+        showToast('Max 3 badges equipped','wrong'); return;
+      }
+      p2.badges=badges.length>0?badges:['none'];
+      saveProfile(p2); renderProfilePanel();
+    });
+  });
+}
+function renderWardrobeSection(gridId,items,profile,type,innerFn){
+  const grid=document.getElementById(gridId); grid.innerHTML='';
+  items.forEach(item=>{
+    const unlocked=profile.unlocked.includes(item.id);
+    const equipped=profile[type]===item.id;
+    const div=document.createElement('div');
+    div.className='wardrobe-item'+(equipped?' equipped':'')+(unlocked?'':' locked');
+    div.innerHTML=innerFn(item)+(unlocked?'':
+      `<div class="wardrobe-item-lock">🔒</div><div class="wardrobe-lock-req">${item.req||''}</div>`);
+    if(unlocked&&!equipped) div.onclick=()=>equipItem(type,item.id);
+    grid.appendChild(div);
+  });
+}
+function equipItem(type,id){
+  const p=getProfile();
+  if(type==='border'){ p.border=id; }
+  else { p[type]=id; }
+  saveProfile(p);
+  if(type==='theme') applyTheme(id);
+  if(type==='skin') applySkin(id);
+  renderProfilePanel();
+}
+function editName(){
+  document.getElementById('profileCardName').style.display='none';
+  const inp=document.getElementById('profileNameInput');
+  inp.value=document.getElementById('profileCardName').textContent;
+  inp.style.display='block'; inp.focus(); inp.select();
+}
+function saveName(){
+  const p=getProfile();
+  const val=document.getElementById('profileNameInput').value.trim().slice(0,20)||'Explorer';
+  p.name=val; saveProfile(p);
+  document.getElementById('profileCardName').textContent=val;
+  document.getElementById('profileCardName').style.display='';
+  document.getElementById('profileNameInput').style.display='none';
+}
 
-            if (timeLeft <= 0) {
-                clearInterval(timer);
-                alert('Time is up! Your score: ' + score);
-            }
-        }
+// Milestone unlock with typed animations
+function checkMilestones(sessionData){
+  const stats=loadStats(); const p=getProfile(); const passport=loadPassport();
+  const newUnlocks=[];
+  MILESTONES.forEach(m=>{
+    if(p.earnedMilestones.includes(m.id)||!m.check(stats,sessionData,passport)) return;
+    p.earnedMilestones.push(m.id);
+    m.unlocks.forEach(u=>{
+      if(!p.unlocked.includes(u.id)){
+        p.unlocked.push(u.id);
+        const cat=u.type==='avatar'?AVATARS:u.type==='badge'?BADGES:u.type==='background'?BACKGROUNDS:u.type==='border'?BORDERS:u.type==='celebration'?CELEBRATIONS:u.type==='skin'?SKINS:THEMES;
+        const item=cat.find(i=>i.id===u.id);
+        if(item) newUnlocks.push({type:u.type, item});
+      }
+    });
+  });
+  if(newUnlocks.length){ saveProfile(p); showUnlockSequence(newUnlocks); }
+}
 
-        function triggerConfetti() {
-            // Function to trigger confetti animation
-            // Add confetti animation logic here
-        }
-    </script>
+function showUnlockSequence(unlocks){
+  let i=0;
+  function next(){
+    if(i>=unlocks.length) return;
+    const {type,item}=unlocks[i++];
+    triggerUnlockAnimation(type, item);
+    setTimeout(next, 4200);
+  }
+  next();
+}
+
+function triggerUnlockAnimation(type, item){
+  const toast=document.getElementById('unlockToast');
+  const icon=document.getElementById('unlockToastIcon');
+  document.getElementById('unlockToastItems').textContent=item.name;
+  // Type-specific icon + animation class
+  icon.className='unlock-toast-icon';
+  if(type==='avatar'){
+    icon.textContent=item.emoji; icon.classList.add('avatar-bounce');
+  } else if(type==='badge'){
+    icon.textContent=item.emoji||'🏅'; icon.classList.add('badge-sparkle');
+  } else if(type==='background'){
+    icon.textContent='🖼️';
+    const ov=document.getElementById('bgRevealOverlay');
+    ov.style.background=item.style; ov.classList.remove('reveal'); void ov.offsetWidth; ov.classList.add('reveal');
+  } else if(type==='theme'){
+    icon.textContent='🎨';
+    const ov=document.getElementById('themeFlashOverlay');
+    ov.style.background=item.accent; ov.classList.remove('flash'); void ov.offsetWidth; ov.classList.add('flash');
+  } else if(type==='border'){
+    icon.textContent='✨';
+  }
+  toast.classList.remove('show'); void toast.offsetWidth;
+  toast.classList.add('show');
+  setTimeout(()=>{ toast.classList.remove('show'); icon.className='unlock-toast-icon'; }, 4000);
+}
+
+// ═══════════════════════════════════════
+//  GRANULAR STATS (per mode + region)
+// ═══════════════════════════════════════
+const REGION_LABELS={world:'🌐 World',Europe:'🏰 Europe','North America':'🌎 N. America',
+  'South America':'🌎 S. America',Asia:'🌏 Asia',Africa:'🌍 Africa',Oceania:'🦘 Oceania'};
+
+// ═══════════════════════════════════════
+//  SETTINGS
+// ═══════════════════════════════════════
+let _settingsCache=null;
+function loadSettings(){
+  if(_settingsCache) return _settingsCache;
+  try{ _settingsCache=JSON.parse(localStorage.getItem('ferdography_settings'))||{}; }
+  catch(e){ _settingsCache={}; }
+  return _settingsCache;
+}
+function saveSettings(s){ _settingsCache=s; localStorage.setItem('ferdography_settings',JSON.stringify(s)); }
+function getSettings(){
+  const s=loadSettings();
+  return {
+    lives:     s.lives??3,
+    timerDuration: s.timerDuration??15,
+    reduceMotion:  s.reduceMotion??false,
+    autoAdvance:   s.autoAdvance??false,
+    noLives:       s.noLives??false
+  };
+}
+
+function openSettings(){
+  renderSettingsPanel();
+  document.getElementById('settingsOverlay').classList.add('show');
+  document.getElementById('settingsPanel').classList.add('open');
+}
+function closeSettings(){
+  document.getElementById('settingsOverlay').classList.remove('show');
+  document.getElementById('settingsPanel').classList.remove('open');
+}
+function renderSettingsPanel(){
+  const s=getSettings(); const p=getProfile();
+  const livSel=(v,label)=>`<button class="settings-sel-btn${!s.noLives&&s.lives===v?' active':''}" onclick="setSetting('noLives',false,'lives',${v})">${label}</button>`;
+  const timSel=(v,label)=>`<button class="settings-sel-btn${s.timerDuration===v?' active':''}" onclick="setSetting('timerDuration',${v})">${label}</button>`;
+  document.getElementById('settingsBody').innerHTML=`
+    <div class="settings-section">
+      <div class="settings-section-title">PROFILE</div>
+      <div style="margin-bottom:0.4rem"><label class="settings-row-label">Display Name</label></div>
+      <input class="settings-name-input" id="settingsNameInput" maxlength="20" value="${p.name.replace(/"/g,'&quot;')}" placeholder="Your name"/>
+      <button class="settings-name-save" onclick="saveSettingsName()">Save Name</button>
+    </div>
+    <div class="settings-section">
+      <div class="settings-section-title">GAMEPLAY</div>
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-label">Lives</div>
+          <div class="settings-row-sub">Hearts per game (∞ = unlimited)</div>
+        </div>
+        <div class="settings-selector">
+          <button class="settings-sel-btn${s.noLives?' active':''}" onclick="setSetting('noLives',true)">OFF</button>
+          ${livSel(1,'1')}${livSel(3,'3')}${livSel(5,'5')}
+        </div>
+      </div>
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-label">Timer</div>
+          <div class="settings-row-sub">Seconds per question</div>
+        </div>
+        <div class="settings-selector">${timSel(15,'15s')}${timSel(30,'30s')}${timSel(60,'60s')}</div>
+      </div>
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-label">Auto-Advance</div>
+          <div class="settings-row-sub">Skip pause between questions</div>
+        </div>
+        <label class="settings-toggle-wrap">
+          <input type="checkbox" ${s.autoAdvance?'checked':''} onchange="setSetting('autoAdvance',this.checked)"/>
+          <div class="settings-toggle-track"></div>
+        </label>
+      </div>
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-label">Reduce Motion</div>
+          <div class="settings-row-sub">Disable streak banners, confetti & flashes</div>
+        </div>
+        <label class="settings-toggle-wrap">
+          <input type="checkbox" ${s.reduceMotion?'checked':''} onchange="setSetting('reduceMotion',this.checked)"/>
+          <div class="settings-toggle-track"></div>
+        </label>
+      </div>
+    </div>
+    <div class="settings-section">
+      <div class="settings-section-title">DANGER ZONE</div>
+      <div style="font-size:0.78rem;color:var(--muted);margin-bottom:0.85rem;line-height:1.6">Wipes all stats, passport stamps, profile data, and settings. Cannot be undone.</div>
+      <button class="settings-reset-btn" onclick="showResetConfirm()">🗑 RESET EVERYTHING</button>
+    </div>`;
+}
+function setSetting(key,val,key2,val2){
+  const s=loadSettings();
+  s[key]=val;
+  if(key2!==undefined) s[key2]=val2;
+  saveSettings(s);
+  renderSettingsPanel();
+}
+function saveSettingsName(){
+  const inp=document.getElementById('settingsNameInput');
+  if(!inp) return;
+  const val=inp.value.trim().slice(0,20)||'Explorer';
+  const p=getProfile(); p.name=val; saveProfile(p);
+  updateProfileBtn();
+  showToast('Name saved!','correct');
+}
+function showResetConfirm(){ document.getElementById('resetConfirmModal').classList.add('show'); }
+function closeResetModal(){ document.getElementById('resetConfirmModal').classList.remove('show'); }
+function doReset(){
+  localStorage.removeItem('ferdography_stats');
+  localStorage.removeItem('ferdography_passport');
+  localStorage.removeItem('ferdography_profile');
+  localStorage.removeItem('ferdography_settings');
+  _statsCache=null; _passportCache=null; _profileCache=null; _settingsCache=null;
+  closeResetModal(); closeSettings();
+  updateIntroMastery();
+  applyTheme(getProfile().theme);
+  updateProfileBtn();
+  showToast('Everything reset','correct');
+  checkFirstVisit();
+}
+
+// ═══════════════════════════════════════
+//  FIRST VISIT WELCOME
+// ═══════════════════════════════════════
+function checkFirstVisit(){
+  const p=loadProfile();
+  if(!p.name){
+    setTimeout(()=>{
+      document.getElementById('welcomeOverlay').classList.add('show');
+      const inp=document.getElementById('welcomeNameInput');
+      if(inp){ inp.value=''; inp.focus(); }
+    },300);
+  }
+}
+function saveWelcomeName(){
+  const inp=document.getElementById('welcomeNameInput');
+  const val=(inp?inp.value:'').trim().slice(0,20)||'Explorer';
+  const p=getProfile(); p.name=val; saveProfile(p);
+  document.getElementById('welcomeOverlay').classList.remove('show');
+  updateProfileBtn();
+}
+
+// Init on load
+updateIntroMastery();
+applyTheme(getProfile().theme);
+applySkin(getProfile().skin);
+updateProfileBtn();
+document.getElementById('profileBtn').style.display='flex';
+document.getElementById('settingsBtn').style.display='flex';
+checkFirstVisit();
+</script>
 </body>
 </html>
